@@ -28,6 +28,7 @@ export async function deleteTask(taskId) {
   const filtered = tasks.filter(t => t.id !== taskId);
   await chrome.storage.local.set({ tasks: filtered });
   await chrome.storage.local.remove(`snapshot:${taskId}`);
+  await chrome.storage.local.remove(`numericHistory:${taskId}`);
 }
 
 export async function getSnapshot(taskId) {
@@ -97,6 +98,10 @@ export async function getNumericHistory(taskId) {
 export async function addNumericPoint(taskId, value, timestamp) {
   const key = `numericHistory:${taskId}`;
   const history = await getNumericHistory(taskId);
+  if (history.length > 0) {
+    const last = history[history.length - 1];
+    if (last.value === value) return;
+  }
   history.push({ value, timestamp });
   if (history.length > 100) {
     history.splice(0, history.length - 100);

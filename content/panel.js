@@ -10,6 +10,7 @@ export class Panel {
     this.viewMode = 'tasks';
     this.expandedTasks = new Set();
     this.trendChart = null;
+    this.sparklineCharts = new Map();
     this.bindEvents();
     this.loadChanges();
   }
@@ -430,16 +431,30 @@ export class Panel {
 
   async renderSparklines() {
     const canvases = this.root.querySelectorAll('.mw-task-group-sparkline');
-    if (canvases.length === 0) return;
+    if (canvases.length === 0) {
+      for (const [, chart] of this.sparklineCharts) {
+        chart.destroy();
+      }
+      this.sparklineCharts.clear();
+      return;
+    }
 
     await this.ensureChart();
     if (!Chart) return;
 
+    const activeTaskIds = new Set();
     for (const canvas of canvases) {
       const taskId = canvas.dataset.taskId;
+      activeTaskIds.add(taskId);
       try {
         const resp = await chrome.runtime.sendMessage({ type: 'GET_NUMERIC_HISTORY', taskId });
         const history = resp?.history || [];
+
+        if (this.sparklineCharts.has(taskId)) {
+          this.sparklineCharts.get(taskId).destroy();
+          this.sparklineCharts.delete(taskId);
+        }
+
         if (history.length < 2) {
           canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
           continue;
@@ -452,7 +467,7 @@ export class Panel {
         const color = up ? 'rgba(239, 68, 68, 1)' : 'rgba(34, 197, 94, 1)';
         const fillColor = up ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)';
 
-        new Chart(canvas.getContext('2d'), {
+        const chart = new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
             labels: history.map(() => ''),
@@ -479,7 +494,15 @@ export class Panel {
             animation: false,
           },
         });
+        this.sparklineCharts.set(taskId, chart);
       } catch { /* ignore */ }
+    }
+
+    for (const [taskId, chart] of this.sparklineCharts) {
+      if (!activeTaskIds.has(taskId)) {
+        chart.destroy();
+        this.sparklineCharts.delete(taskId);
+      }
     }
   }
 
@@ -537,7 +560,9 @@ export class Panel {
       `;
     }
 
-    await this.renderTrendChart(change.taskId);
+    requestAnimationFrame(() => {
+      this.renderTrendChart(change.taskId);
+    });
     this.renderDiffContent();
   }
 
@@ -560,6 +585,10 @@ export class Panel {
         container.classList.add('hidden');
         return;
       }
+
+      const containerWidth = container.clientWidth || 340;
+      canvas.width = containerWidth - 4;
+      canvas.height = 100;
 
       container.classList.remove('hidden');
 
@@ -619,7 +648,7 @@ export class Panel {
           }],
         },
         options: {
-          responsive: true,
+          responsive: false,
           maintainAspectRatio: false,
           plugins: {
             legend: { display: false },
