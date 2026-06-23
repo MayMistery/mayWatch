@@ -464,6 +464,16 @@ export class Panel {
     this.root.getElementById('mw-detail-meta').textContent =
       `${new Date(change.detectedAt).toLocaleString()} | ${this.extractDomain(change.url)}`;
 
+    // 检测是否为纯数值变化（无文本 diff）
+    const hasTextDiff = change.summary.addedLines > 0 || change.summary.removedLines > 0;
+    const isPureNumeric = change.isNumeric && !hasTextDiff;
+
+    // 控制 diff tabs 的显示
+    const tabsContainer = this.root.querySelector('.mw-tabs');
+    if (tabsContainer) {
+      tabsContainer.style.display = isPureNumeric ? 'none' : 'flex';
+    }
+
     for (const t of this.root.querySelectorAll('.mw-tab')) {
       t.classList.toggle('active', t.dataset.tab === 'summary');
     }
@@ -486,7 +496,15 @@ export class Panel {
       const history = resp?.history || [];
 
       if (history.length < 2) {
-        container.classList.add('hidden');
+        container.classList.remove('hidden');
+        // 显示数据收集中提示
+        container.innerHTML = `
+          <div class="mw-chart-placeholder">
+            <span class="mw-chart-placeholder-icon">📊</span>
+            <span class="mw-chart-placeholder-text">收集数据中，至少需要 2 个数据点才能绘制趋势图</span>
+            <span class="mw-chart-placeholder-count">当前已收集 ${history.length} 个数据点</span>
+          </div>
+        `;
         return;
       }
 
@@ -496,14 +514,17 @@ export class Panel {
         return;
       }
 
+      // 恢复 canvas 元素
       container.classList.remove('hidden');
+      container.innerHTML = '<canvas id="mw-trend-chart"></canvas>';
+      const newCanvas = container.querySelector('#mw-trend-chart');
 
       if (this.trendChart) {
         this.trendChart.destroy();
         this.trendChart = null;
       }
 
-      this.trendChart = new Chart(canvas.getContext('2d'), {
+      this.trendChart = new Chart(newCanvas.getContext('2d'), {
         type: 'line',
         data: {
           labels: history.map(h => {
@@ -669,7 +690,20 @@ export class Panel {
 
   renderSummaryView() {
     const s = this.currentChange.summary;
-    let html = '<div class="mw-summary-section"><div class="mw-summary-label">📝 变化摘要</div>';
+    const hasTextDiff = s.addedLines > 0 || s.removedLines > 0;
+    let html = '';
+
+    // 纯数值变化：显示数值为中心的摘要
+    if (this.currentChange.isNumeric && !hasTextDiff) {
+      html += '<div class="mw-summary-section">';
+      html += '<div class="mw-summary-label">📊 数值追踪</div>';
+      html += `<div class="mw-numeric-current-value">${this.currentChange.numericValue}</div>`;
+      html += '<div class="mw-numeric-hint">趋势图已在上方展示，继续监控以积累更多数据点</div>';
+      html += '</div>';
+      return html;
+    }
+
+    html += '<div class="mw-summary-section"><div class="mw-summary-label">📝 变化摘要</div>';
 
     if (this.currentChange.isNumeric) {
       html += `<div class="mw-summary-item"><span class="mw-dot-changed">● 当前值: ${this.currentChange.numericValue}</span></div>`;

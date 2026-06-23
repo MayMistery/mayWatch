@@ -55,6 +55,25 @@ function extractNumericValue(text, task = {}) {
   return { isNumeric: true, numericValue: value };
 }
 
+const PLACEHOLDER_PATTERNS = [
+  /^--$/,
+  /^-$/,
+  /^—$/,
+  /^loading\.\.\.$/i,
+  /^n\/a$/i,
+  /^null$/i,
+  /^undefined$/i,
+  /^正在加载/i,
+  /^加载中/i,
+  /^刷新中/i,
+  /^\s*$/,
+];
+
+export function isPlaceholderContent(text) {
+  const trimmed = text.trim();
+  return PLACEHOLDER_PATTERNS.some(p => p.test(trimmed));
+}
+
 export function createChangeRecord(task, oldContent, newContent, diffResult) {
   const { isNumeric, numericValue } = extractNumericValue(newContent, task);
   return {

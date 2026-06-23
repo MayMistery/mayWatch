@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>React 数值仪表盘 - MayWatch 测试 Fixture</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 40px; }
+    .dashboard { max-width: 900px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 24px; color: #38bdf8; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+    .card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+    .card-label { font-size: 12px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .card-value { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .card-value.up { color: #4ade80; }
+    .card-value.down { color: #f87171; }
+    .card-value.stable { color: #38bdf8; }
+    .card-unit { font-size: 14px; color: #64748b; margin-left: 4px; }
+    .card-change { font-size: 12px; margin-top: 4px; }
+    .card-change.positive { color: #4ade80; }
+    .card-change.negative { color: #f87171; }
+    .controls { margin-top: 32px; display: flex; gap: 12px; flex-wrap: wrap; }
+    button { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+    button:hover { transform: translateY(-1px); }
+    .btn-simulate { background: #6366f1; color: white; }
+    .btn-refresh { background: #334155; color: #e2e8f0; }
+    .btn-reset { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+    .info { margin-top: 24px; padding: 12px; background: #1e293b; border-radius: 8px; font-size: 12px; color: #64748b; }
+    .info strong { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    // 模拟实时数据源
+    function generateMetrics() {
+      return {
+        qps: Math.floor(1200 + Math.random() * 800),
+        latency: Math.floor(45 + Math.random() * 30),
+        errorRate: (Math.random() * 2).toFixed(2),
+        cpuUsage: Math.floor(55 + Math.random() * 30),
+        memoryGB: (12.5 + Math.random() * 3).toFixed(1),
+        activeUsers: Math.floor(3400 + Math.random() * 600),
+      };
+    }
+
+    function MetricCard({ label, value, unit, prevValue }) {
+      const change = prevValue !== null ? (parseFloat(value) - parseFloat(prevValue)) : 0;
+      const changeClass = change > 0 ? 'up' : change < 0 ? 'down' : 'stable';
+      const changeSign = change > 0 ? '+' : '';
+      const changeDisplay = prevValue !== null ? `${changeSign}${change.toFixed(1)}` : '—';
+
+      return (
+        <div className="card">
+          <div className="card-label">{label}</div>
+          <div>
+            <span className={`card-value ${changeClass}`} id={`metric-${label.replace(/\s+/g, '-').toLowerCase()}`}>
+              {value}
+            </span>
+            {unit && <span className="card-unit">{unit}</span>}
+          </div>
+          <div className={`card-change ${change > 0 ? 'positive' : change < 0 ? 'negative' : ''}`}>
+            {changeDisplay}
+          </div>
+        </div>
+      );
+    }
+
+    function App() {
+      const [metrics, setMetrics] = useState(generateMetrics);
+      const [prevMetrics, setPrevMetrics] = useState(null);
+      const [updateCount, setUpdateCount] = useState(0);
+      const [isRefreshing, setIsRefreshing] = useState(false);
+
+      const simulateUpdate = useCallback(() => {
+        setPrevMetrics(metrics);
+        setMetrics(generateMetrics());
+        setUpdateCount(c => c + 1);
+      }, [metrics]);
+
+      const simulateRefresh = useCallback(() => {
+        setIsRefreshing(true);
+        // 模拟刷新时的占位值
+        setMetrics({
+          qps: '--',
+          latency: '--',
+          errorRate: '--',
+          cpuUsage: 'Loading...',
+          memoryGB: 'N/A',
+          activeUsers: '—',
+        });
+        setTimeout(() => {
+          setMetrics(generateMetrics());
+          setIsRefreshing(false);
+          setUpdateCount(c => c + 1);
+        }, 2000);
+      }, []);
+
+      const resetAll = useCallback(() => {
+        setPrevMetrics(null);
+        setMetrics(generateMetrics());
+        setUpdateCount(0);
+        setIsRefreshing(false);
+      }, []);
+
+      useEffect(() => {
+        const timer = setInterval(simulateUpdate, 5000);
+        return () => clearInterval(timer);
+      }, [simulateUpdate]);
+
+      return (
+        <div className="dashboard">
+          <h1>🔢 实时监控仪表盘 (React)</h1>
+          <div className="grid">
+            <MetricCard label="QPS" value={metrics.qps} unit="req/s" prevValue={prevMetrics?.qps} />
+            <MetricCard label="Latency" value={metrics.latency} unit="ms" prevValue={prevMetrics?.latency} />
+            <MetricCard label="Error Rate" value={metrics.errorRate} unit="%" prevValue={prevMetrics?.errorRate} />
+            <MetricCard label="CPU Usage" value={metrics.cpuUsage} unit="%" prevValue={prevMetrics?.cpuUsage} />
+            <MetricCard label="Memory" value={metrics.memoryGB} unit="GB" prevValue={prevMetrics?.memoryGB} />
+            <MetricCard label="Active Users" value={metrics.activeUsers} unit="" prevValue={prevMetrics?.activeUsers} />
+          </div>
+          <div className="controls">
+            <button className="btn-simulate" onClick={simulateUpdate}>🔄 模拟数据更新</button>
+            <button className="btn-refresh" onClick={simulateRefresh}>🔃 模拟页面刷新（含占位值）</button>
+            <button className="btn-reset" onClick={resetAll}>↺ 重置</button>
+          </div>
+          <div className="info">
+            <strong>测试场景：</strong> React SPA 数值仪表盘 — 用于验证 MayWatch 数值追踪的趋势图渲染和占位值兼容性。
+            自动每 5 秒更新一次数据。点击"模拟页面刷新"会先显示占位值（--/Loading.../N/A），2 秒后恢复。
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

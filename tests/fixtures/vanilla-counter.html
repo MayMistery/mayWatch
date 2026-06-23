@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>原生 HTML 计数器 - MayWatch 测试 Fixture</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0c0a1d; color: #e0e0e0; padding: 40px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+    .container { max-width: 600px; width: 100%; }
+    h1 { font-size: 24px; margin-bottom: 24px; color: #a78bfa; text-align: center; }
+    .counter-panel { background: #1a1a2e; border-radius: 16px; padding: 32px; border: 1px solid #2a2a4a; text-align: center; }
+    .counter-label { font-size: 14px; color: #888; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .counter-value { font-size: 72px; font-weight: 800; font-variant-numeric: tabular-nums; color: #a78bfa; line-height: 1; margin-bottom: 8px; }
+    .counter-trend { font-size: 14px; margin-bottom: 24px; }
+    .counter-trend.up { color: #4ade80; }
+    .counter-trend.down { color: #f87171; }
+    .counter-trend.stable { color: #888; }
+    .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    button { padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.15s; }
+    button:hover { transform: translateY(-1px); }
+    .btn-inc { background: #4ade80; color: #0c0a1d; }
+    .btn-dec { background: #f87171; color: #0c0a1d; }
+    .btn-random { background: #6366f1; color: white; }
+    .btn-refresh { background: #334155; color: #e2e8f0; }
+    .btn-reset { background: transparent; color: #888; border: 1px solid #333; }
+    .info { margin-top: 24px; padding: 12px; background: #1a1a2e; border-radius: 8px; font-size: 12px; color: #666; text-align: center; }
+    .info strong { color: #888; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+    .stat-card { background: #1a1a2e; border-radius: 12px; padding: 16px; text-align: center; border: 1px solid #2a2a4a; }
+    .stat-label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+    .stat-value { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; color: #e0e0e0; }
+    .stat-value.up { color: #4ade80; }
+    .stat-value.down { color: #f87171; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔢 原生 HTML 计数器</h1>
+    <div class="counter-panel">
+      <div class="counter-label">当前计数</div>
+      <div class="counter-value" id="counter-display">0</div>
+      <div class="counter-trend stable" id="counter-trend">—</div>
+      <div class="buttons">
+        <button class="btn-inc" onclick="increment()">+1</button>
+        <button class="btn-dec" onclick="decrement()">-1</button>
+        <button class="btn-random" onclick="randomize()">🎲 随机</button>
+        <button class="btn-refresh" onclick="simulateRefresh()">🔃 模拟刷新</button>
+        <button class="btn-reset" onclick="resetCounter()">↺ 重置</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-label">总计变化次数</div>
+        <div class="stat-value" id="stat-changes">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">当前值</div>
+        <div class="stat-value" id="stat-current">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">变化方向</div>
+        <div class="stat-value stable" id="stat-direction">—</div>
+      </div>
+    </div>
+    <div class="info">
+      <strong>测试场景：</strong> 原生 HTML 静态计数器 — 验证 MayWatch 对非 React 页面的数值追踪能力。
+      点击"模拟刷新"会将计数器短暂显示为占位值 "--"，1.5 秒后恢复。
+    </div>
+  </div>
+
+  <script>
+    let counter = 0;
+    let prevCounter = null;
+    let changeCount = 0;
+
+    function updateDisplay(value, prev) {
+      document.getElementById('counter-display').textContent = value;
+      document.getElementById('stat-current').textContent = value;
+
+      const trend = document.getElementById('counter-trend');
+      const direction = document.getElementById('stat-direction');
+
+      if (prev !== null && typeof prev === 'number' && typeof value === 'number') {
+        const diff = value - prev;
+        if (diff > 0) {
+          trend.textContent = `↑ +${diff}`;
+          trend.className = 'counter-trend up';
+          direction.textContent = `↑ +${diff}`;
+          direction.className = 'stat-value up';
+        } else if (diff < 0) {
+          trend.textContent = `↓ ${diff}`;
+          trend.className = 'counter-trend down';
+          direction.textContent = `↓ ${diff}`;
+          direction.className = 'stat-value down';
+        } else {
+          trend.textContent = '— 无变化';
+          trend.className = 'counter-trend stable';
+          direction.textContent = '—';
+          direction.className = 'stat-value stable';
+        }
+      } else {
+        trend.textContent = '—';
+        trend.className = 'counter-trend stable';
+        direction.textContent = '—';
+        direction.className = 'stat-value stable';
+      }
+    }
+
+    function increment() {
+      prevCounter = counter;
+      counter++;
+      changeCount++;
+      updateDisplay(counter, prevCounter);
+      document.getElementById('stat-changes').textContent = changeCount;
+    }
+
+    function decrement() {
+      prevCounter = counter;
+      counter--;
+      changeCount++;
+      updateDisplay(counter, prevCounter);
+      document.getElementById('stat-changes').textContent = changeCount;
+    }
+
+    function randomize() {
+      prevCounter = counter;
+      counter = Math.floor(Math.random() * 1000);
+      changeCount++;
+      updateDisplay(counter, prevCounter);
+      document.getElementById('stat-changes').textContent = changeCount;
+    }
+
+    function simulateRefresh() {
+      // 模拟刷新：先显示占位值
+      document.getElementById('counter-display').textContent = '--';
+      document.getElementById('stat-current').textContent = '--';
+      document.getElementById('counter-trend').textContent = '刷新中...';
+      document.getElementById('counter-trend').className = 'counter-trend stable';
+      document.getElementById('stat-direction').textContent = '刷新中...';
+      document.getElementById('stat-direction').className = 'stat-value stable';
+
+      setTimeout(() => {
+        prevCounter = counter;
+        counter = Math.floor(Math.random() * 500);
+        changeCount++;
+        updateDisplay(counter, prevCounter);
+        document.getElementById('stat-changes').textContent = changeCount;
+      }, 1500);
+    }
+
+    function resetCounter() {
+      prevCounter = null;
+      counter = 0;
+      changeCount = 0;
+      updateDisplay(counter, null);
+      document.getElementById('stat-changes').textContent = '0';
+    }
+  </script>
+</body>
+</html>

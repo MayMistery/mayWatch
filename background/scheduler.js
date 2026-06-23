@@ -1,6 +1,6 @@
 import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint } from './storage.js';
 import { fetchPageContent } from './fetcher.js';
-import { computeDiff, createChangeRecord } from './differ.js';
+import { computeDiff, createChangeRecord, isPlaceholderContent } from './differ.js';
 import { sendFeishuNotification } from './notifier.js';
 
 const MAX_CONTENT_SIZE = 500 * 1024;
@@ -65,6 +65,12 @@ export async function checkSingleTask(task) {
 
   if (!diffResult) {
     return { taskId: task.id, status: 'no_change' };
+  }
+
+  // 占位值兼容：如果新内容是占位值（如 "--"、"Loading..."），跳过变更记录
+  // 避免页面刷新时的短暂占位值污染变更历史和数值历史
+  if (isPlaceholderContent(content)) {
+    return { taskId: task.id, status: 'placeholder_skipped' };
   }
 
   const changeRecord = createChangeRecord(task, snapshot.content, content, diffResult);
