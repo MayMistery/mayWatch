@@ -584,6 +584,72 @@
   height: 100px !important;
 }
 
+.mw-numeric-stats {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 0 4px 0;
+  flex-wrap: wrap;
+}
+
+.mw-numeric-current {
+  font-size: 22px;
+  font-weight: 700;
+  color: #e8e8f0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.mw-numeric-delta {
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-numeric-delta.up {
+  color: #ef4444;
+}
+
+.mw-numeric-delta.down {
+  color: #22c55e;
+}
+
+.mw-numeric-meta {
+  font-size: 10px;
+  color: #666;
+  display: flex;
+  gap: 8px;
+}
+
+.mw-numeric-meta span {
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-card-delta {
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-delta-up {
+  color: #ef4444;
+}
+
+.mw-delta-down {
+  color: #22c55e;
+}
+
+.mw-task-group-latest {
+  margin-top: 2px;
+}
+
+.mw-task-group-latest .mw-card-value {
+  font-size: 14px;
+  color: #e8e8f0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .mw-tabs {
   display: flex;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);

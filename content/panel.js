@@ -237,31 +237,51 @@ export class Panel {
       const unreadCount = changes.filter(c => !c.read).length;
       const latest = changes[0];
       const expanded = this.expandedTasks.has(task.id);
-      const hasNumeric = changes.some(c => c.isNumeric);
+      const isNumericTask = task.numericMode && task.numericMode !== 'off';
+      const hasNumeric = isNumericTask || changes.some(c => c.isNumeric);
       const domain = this.extractDomain(task.url);
+
+      let latestValueHtml = '';
+      if (latest && isNumericTask && latest.numericValue != null) {
+        latestValueHtml = `<span class="mw-card-value">${this.formatNumber(latest.numericValue)}</span>`;
+      } else if (latest && latest.isNumeric) {
+        latestValueHtml = `<span class="mw-card-value">${this.formatNumber(latest.numericValue)}</span>`;
+      }
 
       let sparklineHtml = '';
       if (hasNumeric) {
-        sparklineHtml = `<canvas class="mw-task-group-sparkline" data-task-id="${task.id}"></canvas>`;
+        sparklineHtml = `<canvas class="mw-task-group-sparkline" data-task-id="${task.id}" width="56" height="22"></canvas>`;
       }
 
       let changesHtml = '';
       if (expanded && changes.length > 0) {
-        changesHtml = changes.slice(0, 20).map(c => {
+        changesHtml = changes.slice(0, 20).map((c, idx) => {
           const cls = c.read ? '' : 'unread';
           const time = this.timeAgo(c.detectedAt);
           let valueHtml = '';
-          if (c.isNumeric) {
-            valueHtml = `<span class="mw-card-value">${c.numericValue}</span>`;
+          let deltaHtml = '';
+          if (c.isNumeric && c.numericValue != null) {
+            valueHtml = `<span class="mw-card-value">${this.formatNumber(c.numericValue)}</span>`;
+            const prevChange = changes[idx + 1];
+            if (prevChange && prevChange.isNumeric && prevChange.numericValue != null) {
+              const delta = c.numericValue - prevChange.numericValue;
+              if (delta !== 0) {
+                const deltaCls = delta > 0 ? 'mw-delta-up' : 'mw-delta-down';
+                const arrow = delta > 0 ? '↑' : '↓';
+                deltaHtml = `<span class="mw-card-delta ${deltaCls}">${arrow}${this.formatNumber(Math.abs(delta))}</span>`;
+              }
+            }
           }
+          const showDiffStats = !c.isNumeric;
           return `
             <div class="mw-change-card ${cls}" data-change-id="${c.id}">
               <div class="mw-change-card-left">
                 <span class="mw-card-time">${time}</span>
                 <div class="mw-card-stats">
                   ${valueHtml}
-                  ${c.summary.addedLines > 0 ? `<span class="mw-stat-added">+${c.summary.addedLines}</span>` : ''}
-                  ${c.summary.removedLines > 0 ? `<span class="mw-stat-removed">-${c.summary.removedLines}</span>` : ''}
+                  ${deltaHtml}
+                  ${showDiffStats && c.summary.addedLines > 0 ? `<span class="mw-stat-added">+${c.summary.addedLines}</span>` : ''}
+                  ${showDiffStats && c.summary.removedLines > 0 ? `<span class="mw-stat-removed">-${c.summary.removedLines}</span>` : ''}
                 </div>
               </div>
             </div>
@@ -278,6 +298,7 @@ export class Panel {
             <div class="mw-task-group-left">
               <div class="mw-task-group-name">${this.esc(task.name)}</div>
               <div class="mw-task-group-url">${this.esc(domain)}</div>
+              ${latestValueHtml ? `<div class="mw-task-group-latest">${latestValueHtml}</div>` : ''}
             </div>
             <div class="mw-task-group-right">
               ${sparklineHtml}
@@ -348,11 +369,30 @@ export class Panel {
     }
 
     let html = '';
-    for (const group of groups) {
+    for (let gi = 0; gi < groups.length; gi++) {
+      const group = groups[gi];
       const first = group.items[0];
       const cls = first.read ? '' : 'unread';
       const time = this.timeAgo(first.detectedAt);
       const domain = this.extractDomain(first.url);
+
+      let valueHtml = '';
+      let deltaHtml = '';
+      if (first.isNumeric && first.numericValue != null) {
+        valueHtml = `<span class="mw-card-value">${this.formatNumber(first.numericValue)}</span>`;
+        if (group.items.length > 1) {
+          const prev = group.items[1];
+          if (prev.isNumeric && prev.numericValue != null) {
+            const delta = first.numericValue - prev.numericValue;
+            if (delta !== 0) {
+              const deltaCls = delta > 0 ? 'mw-delta-up' : 'mw-delta-down';
+              const arrow = delta > 0 ? '↑' : '↓';
+              deltaHtml = `<span class="mw-card-delta ${deltaCls}">${arrow}${this.formatNumber(Math.abs(delta))}</span>`;
+            }
+          }
+        }
+      }
+      const showDiffStats = !first.isNumeric;
 
       html += `
         <div class="mw-timeline-card ${cls}" data-change-id="${first.id}">
@@ -362,9 +402,10 @@ export class Panel {
           </div>
           <div class="mw-timeline-card-url">${this.esc(domain)}</div>
           <div class="mw-card-stats">
-            ${first.isNumeric ? `<span class="mw-card-value">${first.numericValue}</span>` : ''}
-            ${first.summary.addedLines > 0 ? `<span class="mw-stat-added">+${first.summary.addedLines}</span>` : ''}
-            ${first.summary.removedLines > 0 ? `<span class="mw-stat-removed">-${first.summary.removedLines}</span>` : ''}
+            ${valueHtml}
+            ${deltaHtml}
+            ${showDiffStats && first.summary.addedLines > 0 ? `<span class="mw-stat-added">+${first.summary.addedLines}</span>` : ''}
+            ${showDiffStats && first.summary.removedLines > 0 ? `<span class="mw-stat-removed">-${first.summary.removedLines}</span>` : ''}
           </div>
         </div>
       `;
@@ -399,21 +440,31 @@ export class Panel {
       try {
         const resp = await chrome.runtime.sendMessage({ type: 'GET_NUMERIC_HISTORY', taskId });
         const history = resp?.history || [];
-        if (history.length < 2) continue;
+        if (history.length < 2) {
+          canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+          continue;
+        }
+
+        const values = history.map(h => h.value);
+        const first = values[0];
+        const last = values[values.length - 1];
+        const up = last >= first;
+        const color = up ? 'rgba(239, 68, 68, 1)' : 'rgba(34, 197, 94, 1)';
+        const fillColor = up ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)';
 
         new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
             labels: history.map(() => ''),
             datasets: [{
-              data: history.map(h => h.value),
-              borderColor: '#8b5cf6',
+              data: values,
+              borderColor: color,
               borderWidth: 1.5,
               pointRadius: 0,
               tension: 0.3,
               fill: {
                 target: 'origin',
-                above: 'rgba(139, 92, 246, 0.1)',
+                above: fillColor,
               },
             }],
           },
@@ -435,13 +486,19 @@ export class Panel {
   async ensureChart() {
     if (Chart) return;
     try {
+      if (typeof self !== 'undefined' && self.Chart) {
+        Chart = self.Chart;
+        return;
+      }
       const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
       const text = await fetch(url).then(r => r.text());
       const blob = new Blob([text], { type: 'text/javascript' });
       const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
+      await import(blobUrl);
       URL.revokeObjectURL(blobUrl);
+      Chart = (typeof self !== 'undefined' && self.Chart)
+        || (typeof globalThis !== 'undefined' && globalThis.Chart)
+        || null;
     } catch (err) {
       console.warn('[MayWatch] Chart.js load failed:', err);
     }
@@ -468,10 +525,17 @@ export class Panel {
       t.classList.toggle('active', t.dataset.tab === 'summary');
     }
 
-    this.root.getElementById('mw-diff-stats').innerHTML = `
-      <span class="mw-dot-added">+${change.summary.addedLines} 新增</span>
-      <span class="mw-dot-removed">-${change.summary.removedLines} 删除</span>
-    `;
+    const diffStatsEl = this.root.getElementById('mw-diff-stats');
+    const isNumeric = change.isNumeric && change.numericValue != null;
+
+    if (isNumeric) {
+      diffStatsEl.innerHTML = `<span class="mw-dot-added" style="color:#a78bfa">数值变化</span>`;
+    } else {
+      diffStatsEl.innerHTML = `
+        <span class="mw-dot-added">+${change.summary.addedLines} 新增</span>
+        <span class="mw-dot-removed">-${change.summary.removedLines} 删除</span>
+      `;
+    }
 
     await this.renderTrendChart(change.taskId);
     this.renderDiffContent();
@@ -480,6 +544,7 @@ export class Panel {
   async renderTrendChart(taskId) {
     const container = this.root.getElementById('mw-chart-container');
     const canvas = this.root.getElementById('mw-trend-chart');
+    const statsEl = this.root.getElementById('mw-numeric-stats');
 
     try {
       const resp = await chrome.runtime.sendMessage({ type: 'GET_NUMERIC_HISTORY', taskId });
@@ -498,10 +563,40 @@ export class Panel {
 
       container.classList.remove('hidden');
 
+      const values = history.map(h => h.value);
+      const current = values[values.length - 1];
+      const first = values[0];
+      const prev = values.length >= 2 ? values[values.length - 2] : first;
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      const deltaFromPrev = current - prev;
+      const deltaFromFirst = current - first;
+      const pctFromFirst = first !== 0 ? ((deltaFromFirst / Math.abs(first)) * 100) : 0;
+
+      const deltaCls = deltaFromPrev >= 0 ? 'up' : 'down';
+      const arrow = deltaFromPrev >= 0 ? '↑' : '↓';
+      const deltaSign = deltaFromPrev >= 0 ? '+' : '';
+
+      statsEl.innerHTML = `
+        <span class="mw-numeric-current">${this.formatNumber(current)}</span>
+        <span class="mw-numeric-delta ${deltaCls}">${arrow}${deltaSign}${this.formatNumber(Math.abs(deltaFromPrev))}</span>
+        <span class="mw-numeric-meta">
+          <span>最小 ${this.formatNumber(min)}</span>
+          <span>最大 ${this.formatNumber(max)}</span>
+          <span>均 ${this.formatNumber(avg)}</span>
+          ${history.length > 2 ? `<span>累计${pctFromFirst >= 0 ? '+' : ''}${pctFromFirst.toFixed(1)}%</span>` : ''}
+          <span>${values.length} 个数据点</span>
+        </span>
+      `;
+
       if (this.trendChart) {
         this.trendChart.destroy();
         this.trendChart = null;
       }
+
+      const trendColor = deltaFromPrev >= 0 ? 'rgba(239, 68, 68, 1)' : 'rgba(34, 197, 94, 1)';
+      const trendFill = deltaFromPrev >= 0 ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.12)';
 
       this.trendChart = new Chart(canvas.getContext('2d'), {
         type: 'line',
@@ -511,15 +606,15 @@ export class Panel {
             return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
           }),
           datasets: [{
-            data: history.map(h => h.value),
-            borderColor: '#8b5cf6',
+            data: values,
+            borderColor: trendColor,
             borderWidth: 2,
-            pointRadius: 3,
-            pointBackgroundColor: '#8b5cf6',
+            pointRadius: values.length <= 20 ? 3 : 1,
+            pointBackgroundColor: trendColor,
             tension: 0.3,
             fill: {
               target: 'origin',
-              above: 'rgba(139, 92, 246, 0.15)',
+              above: trendFill,
             },
           }],
         },
@@ -535,6 +630,9 @@ export class Panel {
               titleColor: '#e0e0e0',
               bodyColor: '#a78bfa',
               displayColors: false,
+              callbacks: {
+                label: (ctx) => this.formatNumber(ctx.parsed.y),
+              },
             },
           },
           scales: {
@@ -543,7 +641,11 @@ export class Panel {
               grid: { color: 'rgba(255,255,255,0.05)' },
             },
             y: {
-              ticks: { color: '#666', font: { size: 10 } },
+              ticks: {
+                color: '#666',
+                font: { size: 10 },
+                callback: (v) => this.formatNumber(v),
+              },
               grid: { color: 'rgba(255,255,255,0.05)' },
             },
           },
@@ -669,43 +771,57 @@ export class Panel {
 
   renderSummaryView() {
     const s = this.currentChange.summary;
+    const c = this.currentChange;
+    const isNumeric = c.isNumeric && c.numericValue != null;
+
     let html = '<div class="mw-summary-section"><div class="mw-summary-label">📝 变化摘要</div>';
 
-    if (this.currentChange.isNumeric) {
-      html += `<div class="mw-summary-item"><span class="mw-dot-changed">● 当前值: ${this.currentChange.numericValue}</span></div>`;
+    if (isNumeric) {
+      html += `<div class="mw-summary-item"><span class="mw-dot-changed">● 当前值: <strong style="color:#e8e8f0;font-size:14px">${this.formatNumber(c.numericValue)}</strong></span></div>`;
     }
-    if (s.addedLines > 0) {
-      html += `<div class="mw-summary-item"><span class="mw-dot-added">● 新增 ${s.addedLines} 行</span></div>`;
-    }
-    if (s.removedLines > 0) {
-      html += `<div class="mw-summary-item"><span class="mw-dot-removed">● 删除 ${s.removedLines} 行</span></div>`;
-    }
-    if (s.changedLines > 0) {
-      html += `<div class="mw-summary-item"><span class="mw-dot-changed">● 约 ${s.changedLines} 处变更</span></div>`;
+
+    if (!isNumeric) {
+      if (s.addedLines > 0) {
+        html += `<div class="mw-summary-item"><span class="mw-dot-added">● 新增 ${s.addedLines} 行</span></div>`;
+      }
+      if (s.removedLines > 0) {
+        html += `<div class="mw-summary-item"><span class="mw-dot-removed">● 删除 ${s.removedLines} 行</span></div>`;
+      }
+      if (s.changedLines > 0) {
+        html += `<div class="mw-summary-item"><span class="mw-dot-changed">● 约 ${s.changedLines} 处变更</span></div>`;
+      }
     }
 
     html += '</div>';
 
-    if (s.addedSnippets.length > 0) {
-      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">▸ 新增内容</div>';
-      for (const snip of s.addedSnippets) {
-        html += `<div class="mw-snippet added">${this.esc(this.truncate(snip, 60))}</div>`;
-      }
-      if (s.addedLines > s.addedSnippets.length) {
-        html += `<div class="mw-snippet-more">... 还有 ${s.addedLines - s.addedSnippets.length} 行</div>`;
+    if (isNumeric) {
+      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#a78bfa;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">▸ 原始内容</div>';
+      if (c.newContent) {
+        html += `<div class="mw-snippet" style="background:rgba(139,92,246,0.08);border-left:2px solid #8b5cf6">${this.esc(this.truncate(c.newContent, 120))}</div>`;
       }
       html += '</div>';
-    }
+    } else {
+      if (s.addedSnippets.length > 0) {
+        html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">▸ 新增内容</div>';
+        for (const snip of s.addedSnippets) {
+          html += `<div class="mw-snippet added">${this.esc(this.truncate(snip, 60))}</div>`;
+        }
+        if (s.addedLines > s.addedSnippets.length) {
+          html += `<div class="mw-snippet-more">... 还有 ${s.addedLines - s.addedSnippets.length} 行</div>`;
+        }
+        html += '</div>';
+      }
 
-    if (s.removedSnippets.length > 0) {
-      html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#f87171;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">▸ 删除内容</div>';
-      for (const snip of s.removedSnippets) {
-        html += `<div class="mw-snippet removed">${this.esc(this.truncate(snip, 60))}</div>`;
+      if (s.removedSnippets.length > 0) {
+        html += '<div style="margin-bottom:12px"><div style="font-size:11px;color:#f87171;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">▸ 删除内容</div>';
+        for (const snip of s.removedSnippets) {
+          html += `<div class="mw-snippet removed">${this.esc(this.truncate(snip, 60))}</div>`;
+        }
+        if (s.removedLines > s.removedSnippets.length) {
+          html += `<div class="mw-snippet-more">... 还有 ${s.removedLines - s.removedSnippets.length} 行</div>`;
+        }
+        html += '</div>';
       }
-      if (s.removedLines > s.removedSnippets.length) {
-        html += `<div class="mw-snippet-more">... 还有 ${s.removedLines - s.removedSnippets.length} 行</div>`;
-      }
-      html += '</div>';
     }
 
     return html;
@@ -838,6 +954,21 @@ export class Panel {
 
   extractDomain(url) {
     try { return new URL(url).hostname; } catch { return url; }
+  }
+
+  formatNumber(n) {
+    if (n == null || isNaN(n)) return String(n);
+    if (Number.isInteger(n)) {
+      return n.toLocaleString('zh-CN');
+    }
+    const abs = Math.abs(n);
+    if (abs >= 1000) {
+      return n.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
+    }
+    if (abs >= 1) {
+      return n.toLocaleString('zh-CN', { maximumFractionDigits: 4 });
+    }
+    return n.toLocaleString('zh-CN', { maximumFractionDigits: 6 });
   }
 
   truncate(str, max = 80) {

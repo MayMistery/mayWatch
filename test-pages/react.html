@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MayWatch Test - React Dashboard</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; padding: 24px; color: #e0e0e0; }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #fff; }
+    .subtitle { color: #888; margin-bottom: 24px; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .card { background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.08); }
+    .card h3 { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .card .selector { font-size: 10px; color: #444; font-family: monospace; margin-bottom: 12px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; }
+    .card .value { font-size: 32px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+    .card .label { font-size: 12px; color: #666; margin-top: 4px; }
+    .card .delta { font-size: 14px; font-weight: 600; margin-top: 8px; }
+    .delta.up { color: #4ade80; }
+    .delta.down { color: #f87171; }
+    .card button { margin-top: 12px; padding: 6px 12px; border: 1px solid #333; border-radius: 6px; background: rgba(255,255,255,0.05); color: #ccc; cursor: pointer; font-size: 12px; margin-right: 6px; }
+    .card button:hover { background: rgba(255,255,255,0.1); }
+    .unit { font-size: 18px; font-weight: 400; color: #666; }
+    .prefix { font-size: 28px; font-weight: 400; color: #666; }
+    .scenario-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+    .tag-auto { background: rgba(139,92,246,0.2); color: #a78bfa; }
+    .tag-template { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .tag-regex { background: rgba(74,222,128,0.2); color: #4ade80; }
+    .chart-row { display: flex; align-items: flex-end; gap: 2px; margin-top: 12px; height: 40px; }
+    .chart-bar { flex: 1; background: linear-gradient(to top, #8b5cf6, #a78bfa); border-radius: 2px 2px 0 0; min-width: 3px; transition: height 0.3s; }
+    .progress-bar { width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 3px; transition: width 0.5s; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useCallback } = React;
+
+    function MetricCard({ title, selector, children, tags = [] }) {
+      return (
+        <div className="card">
+          <h3>
+            {title}
+            {tags.map((t, i) => (
+              <span key={i} className={`scenario-tag tag-${t.type}`}>{t.label}</span>
+            ))}
+          </h3>
+          <div className="selector">{selector}</div>
+          {children}
+        </div>
+      );
+    }
+
+    function Counter() {
+      const [val, setVal] = useState(0);
+      return (
+        <MetricCard title="React 计数器" selector=".react-counter .value"
+          tags={[{type:'auto',label:'auto'},{type:'template',label:'integer'}]}>
+          <div className="value">{val}</div>
+          <div className="label">实时计数</div>
+          <button onClick={() => setVal(v => v + 1)}>+1</button>
+          <button onClick={() => setVal(Math.floor(Math.random() * 10000))}>随机</button>
+          <button onClick={() => setVal(0)}>重置</button>
+        </MetricCard>
+      );
+    }
+
+    function CryptoPrice() {
+      const [price, setPrice] = useState(67234.56);
+      const [prev, setPrev] = useState(67234.56);
+      const [bars, setBars] = useState(Array(20).fill(0.5));
+
+      const update = useCallback(() => {
+        setPrev(price);
+        const change = (Math.random() - 0.48) * 500;
+        const newPrice = Math.max(1, price + change);
+        setPrice(newPrice);
+        setBars(b => [...b.slice(1), Math.random()]);
+      }, [price]);
+
+      useEffect(() => {
+        const t = setInterval(update, 2000);
+        return () => clearInterval(t);
+      }, [update]);
+
+      const delta = price - prev;
+      const pct = ((delta / prev) * 100).toFixed(2);
+
+      return (
+        <MetricCard title="BTC 价格" selector=".react-crypto .value"
+          tags={[{type:'auto',label:'auto'},{type:'template',label:'decimal'}]}>
+          <div className="value react-crypto">
+            <span className="prefix">$</span>{price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div className={`delta ${delta >= 0 ? 'up' : 'down'}`}>
+            {delta >= 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(2)} ({pct}%)
+          </div>
+          <div className="chart-row">
+            {bars.map((h, i) => <div key={i} className="chart-bar" style={{height: `${h * 100}%`}} />)}
+          </div>
+          <button onClick={update}>手动刷新</button>
+        </MetricCard>
+      );
+    }
+
+    function CpuUsage() {
+      const [cpu, setCpu] = useState(42);
+      const [mem, setMem] = useState(67);
+
+      useEffect(() => {
+        const t = setInterval(() => {
+          setCpu(c => Math.max(5, Math.min(95, c + Math.floor((Math.random() - 0.5) * 15))));
+          setMem(m => Math.max(20, Math.min(95, m + Math.floor((Math.random() - 0.5) * 8))));
+        }, 3000);
+        return () => clearInterval(t);
+      }, []);
+
+      return (
+        <MetricCard title="系统资源" selector=".react-cpu .cpu-val"
+          tags={[{type:'auto',label:'auto'},{type:'template',label:'with-unit'}]}>
+          <div className="value react-cpu"><span className="cpu-val">{cpu}</span><span className="unit">%</span></div>
+          <div className="label">CPU 使用率</div>
+          <div className="progress-bar"><div className="progress-fill" style={{width: `${cpu}%`}} /></div>
+          <div style={{marginTop:'8px', fontSize:'14px', color:'#888'}}>内存: <span style={{color:'#fff', fontWeight:600}}>{mem}%</span></div>
+        </MetricCard>
+      );
+    }
+
+    function ResponseTime() {
+      const [rt, setRt] = useState(245);
+      const history = [245];
+
+      const update = () => {
+        const change = Math.floor((Math.random() - 0.4) * 80);
+        setRt(Math.max(20, rt + change));
+      };
+
+      useEffect(() => {
+        const t = setInterval(update, 2000);
+        return () => clearInterval(t);
+      }, [rt]);
+
+      const cls = rt > 500 ? '#f87171' : rt > 200 ? '#fbbf24' : '#4ade80';
+
+      return (
+        <MetricCard title="API 响应时间" selector=".react-rt .rt-val"
+          tags={[{type:'auto',label:'auto'},{type:'regex',label:'regex: (\\d+)ms'}]}>
+          <div className="value react-rt" style={{color: cls}}>
+            <span className="rt-val">{rt}</span><span className="unit">ms</span>
+          </div>
+          <div className="label">P95 延迟</div>
+          <button onClick={update}>刷新</button>
+        </MetricCard>
+      );
+    }
+
+    function OrderCount() {
+      const [orders, setOrders] = useState(8472);
+
+      useEffect(() => {
+        const t = setInterval(() => {
+          setOrders(o => o + Math.floor(Math.random() * 5) + 1);
+        }, 5000);
+        return () => clearInterval(t);
+      }, []);
+
+      return (
+        <MetricCard title="今日订单" selector=".react-orders .orders-val"
+          tags={[{type:'auto',label:'auto'},{type:'template',label:'integer'}]}>
+          <div className="value react-orders">
+            <span className="orders-val">{orders.toLocaleString()}</span>
+          </div>
+          <div className="label">累计订单数</div>
+        </MetricCard>
+      );
+    }
+
+    function ErrorRate() {
+      const [rate, setRate] = useState(0.03);
+
+      useEffect(() => {
+        const t = setInterval(() => {
+          setRate(Math.max(0, Math.min(5, rate + (Math.random() - 0.5) * 0.3)));
+        }, 4000);
+        return () => clearInterval(t);
+      }, [rate]);
+
+      return (
+        <MetricCard title="错误率" selector=".react-errors .err-val"
+          tags={[{type:'auto',label:'auto'},{type:'template',label:'decimal'}]}>
+          <div className="value react-errors" style={{color: rate > 1 ? '#f87171' : '#4ade80'}}>
+            <span className="err-val">{rate.toFixed(2)}</span><span className="unit">%</span>
+          </div>
+          <div className="label">全局错误率</div>
+        </MetricCard>
+      );
+    }
+
+    function DiskUsage() {
+      const [used, setUsed] = useState(742);
+      const total = 1000;
+
+      useEffect(() => {
+        const t = setInterval(() => {
+          setUsed(u => Math.max(100, Math.min(990, u + Math.floor((Math.random() - 0.3) * 20))));
+        }, 6000);
+        return () => clearInterval(t);
+      }, []);
+
+      return (
+        <MetricCard title="磁盘使用" selector=".react-disk .disk-val"
+          tags={[{type:'auto',label:'auto'},{type:'regex',label:'regex: (\\d+)\\.\\d+ GB'}]}>
+          <div className="value react-disk">
+            <span className="disk-val">{(used/total*100).toFixed(1)}</span><span className="unit">%</span>
+          </div>
+          <div className="label">{used} GB / {total} GB</div>
+          <div className="progress-bar"><div className="progress-fill" style={{width: `${used/total*100}%`}} /></div>
+        </MetricCard>
+      );
+    }
+
+    function App() {
+      return (
+        <div>
+          <h1>MayWatch 数字监控测试页 - React 18</h1>
+          <p className="subtitle">React 函数组件 + Hooks 模拟 SPA 数字仪表板，自动定时更新</p>
+          <div className="grid">
+            <Counter />
+            <CryptoPrice />
+            <CpuUsage />
+            <ResponseTime />
+            <OrderCount />
+            <ErrorRate />
+            <DiskUsage />
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

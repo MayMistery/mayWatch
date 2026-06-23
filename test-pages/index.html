@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MayWatch Test Pages</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f0f23; padding: 40px; color: #e0e0e0; max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 28px; margin-bottom: 8px; }
+    .subtitle { color: #888; margin-bottom: 32px; font-size: 14px; line-height: 1.6; }
+    .pages { display: flex; flex-direction: column; gap: 12px; }
+    .page-card { display: flex; align-items: center; padding: 16px 20px; background: #1a1a2e; border-radius: 12px; text-decoration: none; color: inherit; border: 1px solid rgba(255,255,255,0.06); transition: all 0.2s; }
+    .page-card:hover { background: #252547; border-color: rgba(139,92,246,0.3); transform: translateX(4px); }
+    .page-icon { font-size: 28px; margin-right: 16px; }
+    .page-info { flex: 1; }
+    .page-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+    .page-desc { font-size: 12px; color: #888; line-height: 1.5; }
+    .page-tag { font-size: 10px; padding: 2px 8px; border-radius: 4px; background: rgba(139,92,246,0.2); color: #a78bfa; white-space: nowrap; }
+    .note { margin-top: 32px; padding: 16px; background: rgba(251,191,36,0.1); border: 1px solid rgba(251,191,36,0.2); border-radius: 8px; font-size: 13px; color: #fbbf24; line-height: 1.6; }
+    .note strong { color: #fde68a; }
+    code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px; font-size: 12px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <h1>🔬 MayWatch 测试页面</h1>
+  <p class="subtitle">用于 TDD 红绿测试的验证页面集合。建议使用本地 HTTP 服务器打开（file:// 协议下 Chrome 扩展可能受限）。</p>
+
+  <div class="pages">
+    <a class="page-card" href="vanilla.html">
+      <div class="page-icon">📊</div>
+      <div class="page-info">
+        <div class="page-name">Vanilla JS 数字场景</div>
+        <div class="page-desc">纯 JS 实现的各种数字监控场景：整数、小数、货币、百分比、单位、负数、千分位、多行文本</div>
+      </div>
+      <div class="page-tag">基础测试</div>
+    </a>
+
+    <a class="page-card" href="react.html">
+      <div class="page-icon">⚛️</div>
+      <div class="page-info">
+        <div class="page-name">React 18 Dashboard</div>
+        <div class="page-desc">React 函数组件 + Hooks 模拟 SPA 数字仪表板，自动定时更新（CDN 加载，无需构建）</div>
+      </div>
+      <div class="page-tag">React</div>
+    </a>
+
+    <a class="page-card" href="vue.html">
+      <div class="page-icon">💚</div>
+      <div class="page-info">
+        <div class="page-name">Vue 3 Dashboard</div>
+        <div class="page-desc">Vue 3 Composition API 响应式数字仪表板（CDN 加载，无需构建）</div>
+      </div>
+      <div class="page-tag">Vue</div>
+    </a>
+
+    <a class="page-card" href="placeholder.html">
+      <div class="page-icon">🔄</div>
+      <div class="page-info">
+        <div class="page-name">占位值/刷新场景</div>
+        <div class="page-desc">模拟页面刷新时的占位状态：... --- - Loading... N/A skeleton 加载中... 长破折号 — 等</div>
+      </div>
+      <div class="page-tag">Bug 修复验证</div>
+    </a>
+  </div>
+
+  <div class="note">
+    <strong>使用方法：</strong><br>
+    1. 在 test-pages 目录下启动 HTTP 服务器：<code>python3 -m http.server 8765</code><br>
+    2. 在 Chrome 中访问 <code>http://localhost:8765/test-pages/</code><br>
+    3. 打开 MayWatch 扩展 popup，添加监控任务并开启数值追踪<br>
+    4. 使用 1-2 秒间隔观察趋势图是否正确渲染<br>
+    5. 对于 placeholder 页面，点击"模拟刷新"验证占位值不会被误记录
+  </div>
+</body>
+</html>

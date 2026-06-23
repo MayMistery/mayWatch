@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MayWatch Test - Vanilla JS Numeric Scenarios</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; padding: 24px; }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #1a1a2e; }
+    .subtitle { color: #666; margin-bottom: 24px; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .card h3 { font-size: 12px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .card .selector { font-size: 10px; color: #aaa; font-family: monospace; margin-bottom: 12px; padding: 4px 8px; background: #f5f5f5; border-radius: 4px; }
+    .card .value { font-size: 32px; font-weight: 700; color: #1a1a2e; font-variant-numeric: tabular-nums; }
+    .card .label { font-size: 12px; color: #888; margin-top: 4px; }
+    .card .controls { margin-top: 12px; display: flex; gap: 8px; }
+    .card button { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; background: white; cursor: pointer; font-size: 12px; }
+    .card button:hover { background: #f5f5f5; }
+    .positive { color: #4ade80 !important; }
+    .negative { color: #f87171 !important; }
+    .unit { font-size: 18px; font-weight: 400; color: #888; }
+    .prefix { font-size: 28px; font-weight: 400; color: #888; }
+    .scenario-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+    .tag-auto { background: #ede9fe; color: #7c3aed; }
+    .tag-template { background: #fef3c7; color: #d97706; }
+    .tag-regex { background: #dcfce7; color: #16a34a; }
+  </style>
+</head>
+<body>
+  <h1>MayWatch 数字监控测试页 - Vanilla JS</h1>
+  <p class="subtitle">使用 CSS 选择器或 XPath 监控下方数字元素，验证趋势图渲染</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>纯整数计数器 <span class="scenario-tag tag-auto">auto</span><span class="scenario-tag tag-template">integer</span></h3>
+      <div class="selector">#counter-integer</div>
+      <div class="value" id="counter-integer">0</div>
+      <div class="label">访问次数</div>
+      <div class="controls">
+        <button onclick="incrementInteger()">+1</button>
+        <button onclick="setRandomInteger()">随机</button>
+        <button onclick="resetInteger()">重置</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>小数价格 <span class="scenario-tag tag-auto">auto</span><span class="scenario-tag tag-template">decimal</span></h3>
+      <div class="selector">#price-decimal</div>
+      <div class="value" id="price-decimal">99.90</div>
+      <div class="label">商品价格</div>
+      <div class="controls">
+        <button onclick="fluctuatePrice()">波动</button>
+        <button onclick="setRandomPrice()">随机价</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>货币 (¥) <span class="scenario-tag tag-auto">auto</span><span class="scenario-tag tag-template">currency</span></h3>
+      <div class="selector">#price-currency</div>
+      <div class="value" id="price-currency"><span class="prefix">¥</span>1,234.56</div>
+      <div class="label">账户余额</div>
+      <div class="controls">
+        <button onclick="changeCurrency()">变动</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>百分比 <span class="scenario-tag tag-auto">auto</span><span class="scenario-tag tag-template">with-unit</span></h3>
+      <div class="selector">#percent-value</div>
+      <div class="value" id="percent-value">75<span class="unit">%</span></div>
+      <div class="label">CPU 使用率</div>
+      <div class="controls">
+        <button onclick="fluctuatePercent()">波动</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>带单位 (ms) <span class="scenario-tag tag-auto">auto</span><span class="scenario-tag tag-template">with-unit</span></h3>
+      <div class="selector">#latency-value</div>
+      <div class="value" id="latency-value">128<span class="unit">ms</span></div>
+      <div class="label">接口延迟</div>
+      <div class="controls">
+        <button onclick="fluctuateLatency()">波动</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>负数 (温度) <span class="scenario-tag tag-regex">regex: (-?\d+\.?\d*)°C</span></h3>
+      <div class="selector">#temp-value</div>
+      <div class="value" id="temp-value">-5<span class="unit">°C</span></div>
+      <div class="label">冷库温度</div>
+      <div class="controls">
+        <button onclick="fluctuateTemp()">波动</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>带千分位分隔 <span class="scenario-tag tag-auto">auto</span></h3>
+      <div class="selector">#visitors-count</div>
+      <div class="value" id="visitors-count">12,345</div>
+      <div class="label">今日访客</div>
+      <div class="controls">
+        <button onclick="addVisitors()">+100</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>含前后文本 <span class="scenario-tag tag-auto">auto</span></h3>
+      <div class="selector">#stock-info</div>
+      <div class="value" id="stock-info" style="font-size:20px;">股票: 42.85 <span class="positive">▲1.23</span></div>
+      <div class="label">实时股价</div>
+      <div class="controls">
+        <button onclick="updateStock()">更新</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>美元货币 ($) <span class="scenario-tag tag-auto">auto</span><span class="scenario-tag tag-template">currency</span></h3>
+      <div class="selector">#usd-price</div>
+      <div class="value" id="usd-price"><span class="prefix">$</span>1,999.00</div>
+      <div class="label">设备价格</div>
+      <div class="controls">
+        <button onclick="changeUsd()">变动</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>自动递增定时器</h3>
+      <div class="selector">#auto-timer</div>
+      <div class="value" id="auto-timer">0</div>
+      <div class="label">秒计数 (每秒+1)</div>
+    </div>
+
+    <div class="card">
+      <h3>多行文本中的数字 <span class="scenario-tag tag-auto">auto</span></h3>
+      <div class="selector">#multi-line</div>
+      <div class="value" id="multi-line" style="font-size:16px;line-height:1.6;text-align:left;">在线用户: 856<br>消息/秒: 1243<br>队列深度: 67</div>
+      <div class="label">服务器状态</div>
+      <div class="controls">
+        <button onclick="updateServerStats()">刷新</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let intVal = 0;
+    let timerVal = 0;
+
+    function incrementInteger() {
+      intVal++;
+      document.getElementById('counter-integer').textContent = intVal;
+    }
+    function setRandomInteger() {
+      intVal = Math.floor(Math.random() * 10000);
+      document.getElementById('counter-integer').textContent = intVal;
+    }
+    function resetInteger() {
+      intVal = 0;
+      document.getElementById('counter-integer').textContent = intVal;
+    }
+
+    let priceVal = 99.90;
+    function fluctuatePrice() {
+      priceVal += (Math.random() - 0.5) * 5;
+      priceVal = Math.max(0.01, priceVal);
+      document.getElementById('price-decimal').textContent = priceVal.toFixed(2);
+    }
+    function setRandomPrice() {
+      priceVal = Math.random() * 1000;
+      document.getElementById('price-decimal').textContent = priceVal.toFixed(2);
+    }
+
+    let cnyVal = 1234.56;
+    function changeCurrency() {
+      cnyVal += (Math.random() - 0.5) * 200;
+      cnyVal = Math.max(0, cnyVal);
+      const formatted = cnyVal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      document.getElementById('price-currency').innerHTML = '<span class="prefix">¥</span>' + formatted;
+    }
+
+    let pctVal = 75;
+    function fluctuatePercent() {
+      pctVal += Math.floor((Math.random() - 0.5) * 10);
+      pctVal = Math.max(0, Math.min(100, pctVal));
+      document.getElementById('percent-value').innerHTML = pctVal + '<span class="unit">%</span>';
+    }
+
+    let latVal = 128;
+    function fluctuateLatency() {
+      latVal += Math.floor((Math.random() - 0.5) * 50);
+      latVal = Math.max(1, latVal);
+      document.getElementById('latency-value').innerHTML = latVal + '<span class="unit">ms</span>';
+    }
+
+    let tempVal = -5;
+    function fluctuateTemp() {
+      tempVal += (Math.random() - 0.5) * 4;
+      tempVal = Math.round(tempVal * 10) / 10;
+      document.getElementById('temp-value').innerHTML = tempVal + '<span class="unit">°C</span>';
+    }
+
+    let visitorsVal = 12345;
+    function addVisitors() {
+      visitorsVal += Math.floor(Math.random() * 100) + 50;
+      document.getElementById('visitors-count').textContent = visitorsVal.toLocaleString();
+    }
+
+    let stockPrice = 42.85;
+    let stockDelta = 1.23;
+    function updateStock() {
+      const change = (Math.random() - 0.48) * 3;
+      stockDelta = change;
+      stockPrice = Math.max(0.01, stockPrice + change);
+      const cls = change >= 0 ? 'positive' : 'negative';
+      const arrow = change >= 0 ? '▲' : '▼';
+      document.getElementById('stock-info').innerHTML =
+        '股票: ' + stockPrice.toFixed(2) + ' <span class="' + cls + '">' + arrow + Math.abs(change).toFixed(2) + '</span>';
+    }
+
+    let usdVal = 1999.00;
+    function changeUsd() {
+      usdVal += (Math.random() - 0.5) * 300;
+      usdVal = Math.max(0, usdVal);
+      const formatted = usdVal.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      document.getElementById('usd-price').innerHTML = '<span class="prefix">$</span>' + formatted;
+    }
+
+    setInterval(() => {
+      timerVal++;
+      document.getElementById('auto-timer').textContent = timerVal;
+    }, 1000);
+
+    let onlineUsers = 856;
+    let msgPerSec = 1243;
+    let queueDepth = 67;
+    function updateServerStats() {
+      onlineUsers += Math.floor((Math.random() - 0.5) * 50);
+      msgPerSec += Math.floor((Math.random() - 0.5) * 100);
+      queueDepth += Math.floor((Math.random() - 0.5) * 20);
+      onlineUsers = Math.max(0, onlineUsers);
+      msgPerSec = Math.max(0, msgPerSec);
+      queueDepth = Math.max(0, queueDepth);
+      document.getElementById('multi-line').innerHTML =
+        '在线用户: ' + onlineUsers + '<br>消息/秒: ' + msgPerSec + '<br>队列深度: ' + queueDepth;
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MayWatch Test - Vue Dashboard</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #1e3a5f, #0f172a); padding: 24px; color: #e0e0e0; }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #fff; }
+    .subtitle { color: #94a3b8; margin-bottom: 24px; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+    .card { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+    .card h3 { font-size: 11px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .card .selector { font-size: 10px; color: #475569; font-family: monospace; margin-bottom: 12px; padding: 4px 8px; background: rgba(255,255,255,0.03); border-radius: 4px; }
+    .card .value { font-size: 32px; font-weight: 700; color: #fff; font-variant-numeric: tabular-nums; }
+    .card .label { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .card .trend { font-size: 13px; margin-top: 6px; font-weight: 600; }
+    .trend.up { color: #4ade80; }
+    .trend.down { color: #f87171; }
+    .unit { font-size: 18px; font-weight: 400; color: #64748b; }
+    .prefix { font-size: 28px; font-weight: 400; color: #64748b; }
+    .scenario-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+    .tag-auto { background: rgba(56,189,248,0.2); color: #38bdf8; }
+    .tag-template { background: rgba(251,191,36,0.2); color: #fbbf24; }
+    .spark { display: flex; align-items: flex-end; gap: 2px; height: 30px; margin-top: 10px; }
+    .spark-bar { flex: 1; background: linear-gradient(to top, #06b6d4, #38bdf8); border-radius: 1px; min-width: 2px; }
+    .ring { position: relative; display: inline-flex; align-items: center; justify-content: center; margin-top: 8px; }
+    .ring svg { transform: rotate(-90deg); }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>MayWatch 数字监控测试页 - Vue 3</h1>
+    <p class="subtitle">Vue 3 Composition API 响应式数字仪表板</p>
+    <div class="grid">
+      <div class="card" v-for="metric in metrics" :key="metric.id">
+        <h3>
+          {{ metric.title }}
+          <span v-for="tag in metric.tags" :key="tag.label"
+                :class="['scenario-tag', 'tag-' + tag.type]">{{ tag.label }}</span>
+        </h3>
+        <div class="selector">{{ metric.selector }}</div>
+        <div class="value" :class="metric.id + '-val'" v-html="metric.formatted"></div>
+        <div class="label">{{ metric.label }}</div>
+        <div v-if="metric.delta !== null" :class="['trend', metric.delta >= 0 ? 'up' : 'down']">
+          {{ metric.delta >= 0 ? '↑' : '↓' }} {{ Math.abs(metric.delta).toFixed(metric.decimals || 0) }}
+        </div>
+        <div v-if="metric.spark" class="spark">
+          <div v-for="(h, i) in metric.sparkData" :key="i" class="spark-bar"
+               :style="{ height: (h * 100) + '%' }"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted } = Vue;
+
+    createApp({
+      setup() {
+        const metrics = ref([
+          { id: 'vue-revenue', title: '实时营收', selector: '.vue-revenue-val .rev-num',
+            tags: [{type:'auto',label:'auto'},{type:'template',label:'currency'}],
+            val: 58234.67, prev: 58234.67, decimals: 2, label: '今日收入 (CNY)',
+            delta: null, spark: true, sparkData: Array(24).fill(0.4) },
+          { id: 'vue-users', title: '活跃用户', selector: '.vue-users-val',
+            tags: [{type:'auto',label:'auto'},{type:'template',label:'integer'}],
+            val: 15823, prev: 15823, decimals: 0, label: '当前在线', delta: null, spark: false },
+          { id: 'vue-conversion', title: '转化率', selector: '.vue-conversion-val',
+            tags: [{type:'auto',label:'auto'},{type:'template',label:'decimal'}],
+            val: 3.42, prev: 3.42, decimals: 2, label: '访问-付费转化率', delta: null, spark: true, sparkData: Array(20).fill(0.5) },
+          { id: 'vue-apdex', title: 'Apdex 分数', selector: '.vue-apdex-val',
+            tags: [{type:'auto',label:'auto'},{type:'template',label:'decimal'}],
+            val: 0.94, prev: 0.94, decimals: 2, label: '应用性能指数', delta: null, spark: false },
+          { id: 'vue-errors', title: '错误计数', selector: '.vue-errors-val',
+            tags: [{type:'auto',label:'auto'},{type:'template',label:'integer'}],
+            val: 23, prev: 23, decimals: 0, label: '5分钟内错误数', delta: null, spark: true, sparkData: Array(15).fill(0.2) },
+          { id: 'vue-bytes', title: '流量', selector: '.vue-bytes-val',
+            tags: [{type:'auto',label:'auto'},{type:'regex',label:'regex: ([\\d.]+) MB/s'}],
+            val: 45.7, prev: 45.7, decimals: 1, label: '出站带宽', delta: null, spark: true, sparkData: Array(18).fill(0.45) },
+        ]);
+
+        const formatters = {
+          'vue-revenue': (v) => `<span class="prefix">¥</span><span class="rev-num">${v.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</span>`,
+          'vue-users': (v) => v.toLocaleString(),
+          'vue-conversion': (v) => `${v.toFixed(2)}<span class="unit">%</span>`,
+          'vue-apdex': (v) => v.toFixed(2),
+          'vue-errors': (v) => v,
+          'vue-bytes': (v) => `<span class="vue-bytes-val">${v.toFixed(1)}</span><span class="unit"> MB/s</span>`,
+        };
+
+        const computed_metrics = computed(() => metrics.value.map(m => ({
+          ...m,
+          formatted: formatters[m.id](m.val),
+          delta: m.val === m.prev ? null : m.val - m.prev,
+        })));
+
+        let intervals = [];
+
+        onMounted(() => {
+          intervals.push(setInterval(() => {
+            const m = metrics.value.find(x => x.id === 'vue-revenue');
+            m.prev = m.val;
+            m.val += Math.random() * 50;
+            m.sparkData = [...m.sparkData.slice(1), Math.random() * 0.5 + 0.3];
+          }, 2000));
+
+          intervals.push(setInterval(() => {
+            const m = metrics.value.find(x => x.id === 'vue-users');
+            m.prev = m.val;
+            m.val += Math.floor((Math.random() - 0.4) * 100);
+            m.val = Math.max(0, m.val);
+          }, 3000));
+
+          intervals.push(setInterval(() => {
+            const m = metrics.value.find(x => x.id === 'vue-conversion');
+            m.prev = m.val;
+            m.val += (Math.random() - 0.5) * 0.5;
+            m.val = Math.max(0.1, Math.min(20, m.val));
+            m.sparkData = [...m.sparkData.slice(1), m.val / 20];
+          }, 4000));
+
+          intervals.push(setInterval(() => {
+            const m = metrics.value.find(x => x.id === 'vue-apdex');
+            m.prev = m.val;
+            m.val += (Math.random() - 0.5) * 0.05;
+            m.val = Math.max(0, Math.min(1, m.val));
+          }, 5000));
+
+          intervals.push(setInterval(() => {
+            const m = metrics.value.find(x => x.id === 'vue-errors');
+            m.prev = m.val;
+            m.val = Math.max(0, m.val + Math.floor((Math.random() - 0.4) * 5));
+            m.sparkData = [...m.sparkData.slice(1), Math.min(1, m.val / 100)];
+          }, 2500));
+
+          intervals.push(setInterval(() => {
+            const m = metrics.value.find(x => x.id === 'vue-bytes');
+            m.prev = m.val;
+            m.val += (Math.random() - 0.5) * 10;
+            m.val = Math.max(5, m.val);
+            m.sparkData = [...m.sparkData.slice(1), Math.min(1, m.val / 100)];
+          }, 1500));
+        });
+
+        onUnmounted(() => intervals.forEach(clearInterval));
+
+        return { metrics: computed_metrics };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>

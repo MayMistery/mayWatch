@@ -18,15 +18,57 @@ export function computeDiff(oldContent, newContent) {
 const NUMERIC_TEMPLATES = {
   integer: /(-?\d[\d,]*)/,
   decimal: /(-?[\d,]+\.?\d*)/,
-  'with-unit': /(-?[\d,]+\.?\d*)\s*[a-zA-Z%°]+/,
+  'with-unit': /(-?[\d,]+\.?\d*)\s*[a-zA-Z%°]*/,
   currency: /[¥$€£₹]\s*([\d,]+\.?\d*)/,
 };
 
-function extractNumericValue(text, task = {}) {
+const PLACEHOLDER_PATTERNS = [
+  /^\.\.\.$/,
+  /^…+$/,
+  /^-{2,}$/,
+  /^—+$/,
+  /^–+$/,
+  /^·{2,}$/,
+  /^[・•]{2,}$/,
+  /^N\/?A$/i,
+  /^null$/i,
+  /^undefined$/i,
+  /^none$/i,
+  /^--$/,
+  /^-$/,
+  /^loading\.{0,3}$/i,
+  /^加载中\.{0,3}$/,
+  /^载入中\.{0,3}$/,
+  /^请稍候\.{0,3}$/,
+  /^稍等\.{0,3}$/,
+  /^[─━]{2,}$/,
+  /^█+$/,
+  /^[□■▇▆▅▄▃▂▁]{2,}$/,
+];
+
+export function isPlaceholderContent(text) {
+  if (!text) return true;
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return true;
+  if (trimmed.length > 30) return false;
+  for (const pattern of PLACEHOLDER_PATTERNS) {
+    if (pattern.test(trimmed)) return true;
+  }
+  if (/^[\s\p{P}\p{S}]+$/u.test(trimmed) && !/-?\d/.test(trimmed)) {
+    return true;
+  }
+  return false;
+}
+
+export function extractNumericValue(text, task = {}) {
   const mode = task.numericMode || 'off';
 
   if (mode === 'off') {
     return { isNumeric: false, numericValue: null };
+  }
+
+  if (!text || isPlaceholderContent(text)) {
+    return { isNumeric: false, numericValue: null, wasPlaceholder: true };
   }
 
   let regex;

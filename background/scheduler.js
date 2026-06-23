@@ -1,6 +1,6 @@
-import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint } from './storage.js';
+import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint, getNumericHistory } from './storage.js';
 import { fetchPageContent } from './fetcher.js';
-import { computeDiff, createChangeRecord } from './differ.js';
+import { computeDiff, createChangeRecord, isPlaceholderContent, extractNumericValue } from './differ.js';
 import { sendFeishuNotification } from './notifier.js';
 
 const MAX_CONTENT_SIZE = 500 * 1024;
@@ -54,8 +54,19 @@ export async function checkSingleTask(task) {
   task.lastCheckedAt = now;
   await saveTask(task);
 
+  if (isPlaceholderContent(content)) {
+    if (!snapshot) {
+      return { taskId: task.id, status: 'placeholder_waiting' };
+    }
+    return { taskId: task.id, status: 'placeholder_skipped' };
+  }
+
   if (!snapshot) {
     await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
+    const numericResult = extractNumericValue(content, task);
+    if (numericResult.isNumeric) {
+      await addNumericPoint(task.id, numericResult.numericValue, now);
+    }
     return { taskId: task.id, status: 'first_snapshot' };
   }
 
@@ -64,6 +75,13 @@ export async function checkSingleTask(task) {
   await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
 
   if (!diffResult) {
+    const numericResult = extractNumericValue(content, task);
+    if (numericResult.isNumeric) {
+      const history = await getNumericHistory(task.id);
+      if (history.length === 0) {
+        await addNumericPoint(task.id, numericResult.numericValue, now);
+      }
+    }
     return { taskId: task.id, status: 'no_change' };
   }
 
