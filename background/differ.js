@@ -26,10 +26,17 @@ export function isNumericTrackingTask(task = {}) {
   return Boolean(task.numericMode && task.numericMode !== 'off');
 }
 
+const PLACEHOLDER_TOKEN_PATTERN = /^(?:\.{2,}|-{1,}|--|—|n\/a|na|null|undefined|loading(?:(?:\.\.\.)|…)?|加载中(?:(?:\.\.\.)|…)?|重新拉取中|暂无数据|暂无|占位|placeholder)$/;
+
 export function isNumericPlaceholderContent(text) {
   const normalized = normalizeText(String(text || '')).toLowerCase();
   if (!normalized) return true;
-  return /^(?:\.{2,}|-{1,}|--|—|n\/a|na|null|undefined|loading(?:\.\.\.)?|加载中(?:\.\.\.)?|重新拉取中|暂无数据|暂无|占位|placeholder)$/.test(normalized);
+  if (PLACEHOLDER_TOKEN_PATTERN.test(normalized)) return true;
+
+  return normalized
+    .split(/[\s:：|,，;；()[\]{}]+/)
+    .filter(Boolean)
+    .some(token => PLACEHOLDER_TOKEN_PATTERN.test(token));
 }
 
 export function extractNumericValue(text, task = {}) {

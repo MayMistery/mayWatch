@@ -74,16 +74,16 @@ export async function checkSingleTask(task) {
 
   await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
 
+  if (numericResult.isNumeric) {
+    await addNumericPoint(task.id, numericResult.numericValue, now);
+  }
+
   if (!diffResult) {
     return { taskId: task.id, status: 'no_change' };
   }
 
   const changeRecord = createChangeRecord(task, snapshot.content, content, diffResult);
   await addChange(changeRecord);
-
-  if (changeRecord.isNumeric) {
-    await addNumericPoint(task.id, changeRecord.numericValue, changeRecord.detectedAt);
-  }
 
   broadcastChange(changeRecord);
 

@@ -434,16 +434,28 @@ export class Panel {
 
   async ensureChart() {
     if (Chart) return;
+    const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
+    let directImportError = null;
+
     try {
-      const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
+      const mod = await import(url);
+      Chart = mod.Chart || mod.default?.Chart || mod.default || globalThis.Chart;
+      if (Chart) return;
+    } catch (err) {
+      directImportError = err;
+    }
+
+    let blobUrl = null;
+    try {
       const text = await fetch(url).then(r => r.text());
       const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
+      blobUrl = URL.createObjectURL(blob);
       const mod = await import(blobUrl);
       Chart = mod.Chart || mod.default?.Chart || mod.default || globalThis.Chart;
-      URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      console.warn('[MayWatch] Chart.js load failed:', err);
+      console.warn('[MayWatch] Chart.js load failed:', err, directImportError || '');
+    } finally {
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
     }
   }
 
@@ -547,9 +559,10 @@ export class Panel {
               grid: { color: 'rgba(255,255,255,0.05)' },
             },
           },
-          animation: { duration: 300 },
+          animation: false,
         },
       });
+      this.trendChart.update?.('none');
     } catch {
       container.classList.add('hidden');
     }

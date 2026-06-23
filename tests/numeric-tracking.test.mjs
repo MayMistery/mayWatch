@@ -115,6 +115,42 @@ test('numeric placeholder refresh does not replace the last real snapshot or cre
   assert.deepEqual(chromeMock.get('numericHistory:latency-task').map(p => p.value), [120]);
 });
 
+test('numeric placeholder refresh with surrounding label is ignored', async () => {
+  const chromeMock = createChromeMock();
+  chromeMock.queueContent('Revenue $120', 'Revenue\nLoading...');
+
+  const { checkSingleTask } = await import('../background/scheduler.js');
+  const task = numericTask({
+    numericTemplate: 'currency',
+  });
+
+  await checkSingleTask(task);
+  const result = await checkSingleTask(task);
+
+  assert.equal(result.status, 'numeric_placeholder');
+  assert.equal(chromeMock.get('snapshot:latency-task').content, 'Revenue $120');
+  assert.equal(chromeMock.get('changes'), undefined);
+  assert.deepEqual(chromeMock.get('numericHistory:latency-task').map(p => p.value), [120]);
+});
+
+test('numeric no-change checks still append valid trend samples', async () => {
+  const chromeMock = createChromeMock();
+  chromeMock.queueContent('Revenue $120', 'Revenue $120', 'Revenue $120');
+
+  const { checkSingleTask } = await import('../background/scheduler.js');
+  const task = numericTask({
+    numericTemplate: 'currency',
+  });
+
+  await checkSingleTask(task);
+  await checkSingleTask(task);
+  const result = await checkSingleTask(task);
+
+  assert.equal(result.status, 'no_change');
+  assert.equal(chromeMock.get('changes'), undefined);
+  assert.deepEqual(chromeMock.get('numericHistory:latency-task').map(p => p.value), [120, 120, 120]);
+});
+
 test('numeric page records a two point trend after value changes', async () => {
   const chromeMock = createChromeMock();
   chromeMock.queueContent('Latency 120ms', 'Latency 180ms');
