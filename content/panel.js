@@ -435,13 +435,14 @@ export class Panel {
   async ensureChart() {
     if (Chart) return;
     try {
+      // Import straight from the extension origin. A blob: URL inherits the
+      // host page's origin, so a strict page CSP (script-src 'self' …
+      // chrome-extension://<id>/) rejects it and the chart silently never
+      // loads. The UMD build also assigns its constructor to globalThis rather
+      // than exposing ES named exports, so read it from there.
       const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
+      const mod = await import(url);
+      Chart = globalThis.Chart || mod.Chart || mod.default?.Chart || mod.default;
     } catch (err) {
       console.warn('[MayWatch] Chart.js load failed:', err);
     }
