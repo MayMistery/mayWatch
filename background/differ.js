@@ -22,7 +22,17 @@ const NUMERIC_TEMPLATES = {
   currency: /[¥$€£₹]\s*([\d,]+\.?\d*)/,
 };
 
-function extractNumericValue(text, task = {}) {
+export function isNumericTrackingTask(task = {}) {
+  return Boolean(task.numericMode && task.numericMode !== 'off');
+}
+
+export function isNumericPlaceholderContent(text) {
+  const normalized = normalizeText(String(text || '')).toLowerCase();
+  if (!normalized) return true;
+  return /^(?:\.{2,}|-{1,}|--|—|n\/a|na|null|undefined|loading(?:\.\.\.)?|加载中(?:\.\.\.)?|重新拉取中|暂无数据|暂无|占位|placeholder)$/.test(normalized);
+}
+
+export function extractNumericValue(text, task = {}) {
   const mode = task.numericMode || 'off';
 
   if (mode === 'off') {

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MayWatch Vanilla Numeric Monitoring Fixture</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; margin: 32px; background: #18181b; color: #fafafa; }
+    .card { max-width: 520px; padding: 24px; border: 1px solid #3f3f46; border-radius: 18px; background: #24242a; }
+    .metric { display: flex; justify-content: space-between; margin: 14px 0; font-size: 18px; }
+    .value { color: #fbbf24; font-variant-numeric: tabular-nums; }
+    button { margin-right: 8px; padding: 8px 12px; border: 0; border-radius: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <section class="card">
+    <h1>Vanilla Node Host</h1>
+    <div class="metric">CPU load <strong id="vanilla-cpu" class="value">CPU 52%</strong></div>
+    <div class="metric">memory usage <strong id="vanilla-memory" class="value">Memory 6.4GB</strong></div>
+    <button id="vanilla-baseline-toggle" type="button">Baseline</button>
+    <button id="vanilla-pressure-toggle" type="button">Pressure</button>
+    <button id="vanilla-placeholder-toggle" type="button">Placeholder refresh</button>
+  </section>
+  <script>
+    const states = {
+      baseline: { cpu: 'CPU 52%', memory: 'Memory 6.4GB' },
+      pressure: { cpu: 'CPU 91%', memory: 'Memory 13.8GB' },
+      placeholder: { cpu: 'Loading...', memory: '--' },
+    };
+    function setState(name) {
+      document.getElementById('vanilla-cpu').textContent = states[name].cpu;
+      document.getElementById('vanilla-memory').textContent = states[name].memory;
+    }
+    document.getElementById('vanilla-baseline-toggle').addEventListener('click', () => setState('baseline'));
+    document.getElementById('vanilla-pressure-toggle').addEventListener('click', () => setState('pressure'));
+    document.getElementById('vanilla-placeholder-toggle').addEventListener('click', () => setState('placeholder'));
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint } from './storage.js';
 import { fetchPageContent } from './fetcher.js';
-import { computeDiff, createChangeRecord } from './differ.js';
+import { computeDiff, createChangeRecord, extractNumericValue, isNumericPlaceholderContent, isNumericTrackingTask } from './differ.js';
 import { sendFeishuNotification } from './notifier.js';
 
 const MAX_CONTENT_SIZE = 500 * 1024;
@@ -50,12 +50,23 @@ export async function checkSingleTask(task) {
 
   const snapshot = await getSnapshot(task.id);
   const now = Date.now();
+  const numericTracking = isNumericTrackingTask(task);
+  const numericResult = numericTracking
+    ? extractNumericValue(content, task)
+    : { isNumeric: false, numericValue: null };
 
   task.lastCheckedAt = now;
   await saveTask(task);
 
+  if (numericTracking && !numericResult.isNumeric && isNumericPlaceholderContent(content)) {
+    return { taskId: task.id, status: 'numeric_placeholder' };
+  }
+
   if (!snapshot) {
     await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
+    if (numericResult.isNumeric) {
+      await addNumericPoint(task.id, numericResult.numericValue, now);
+    }
     return { taskId: task.id, status: 'first_snapshot' };
   }
 

@@ -440,7 +440,7 @@ export class Panel {
       const blob = new Blob([text], { type: 'text/javascript' });
       const blobUrl = URL.createObjectURL(blob);
       const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
+      Chart = mod.Chart || mod.default?.Chart || mod.default || globalThis.Chart;
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
       console.warn('[MayWatch] Chart.js load failed:', err);

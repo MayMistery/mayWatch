@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MayWatch Alpine Numeric Monitoring Fixture</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; margin: 32px; background: #111827; color: #f3f4f6; }
+    .card { max-width: 520px; padding: 24px; border: 1px solid #374151; border-radius: 18px; background: #172033; }
+    .metric { display: flex; justify-content: space-between; margin: 14px 0; font-size: 18px; }
+    .value { color: #60a5fa; font-variant-numeric: tabular-nums; }
+    button { margin-right: 8px; padding: 8px 12px; border: 0; border-radius: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <section class="card" x-data="{
+    mode: 'baseline',
+    states: {
+      baseline: { queue: 'Queue depth 38', lag: 'Worker lag 240ms' },
+      surge: { queue: 'Queue depth 316', lag: 'Worker lag 1850ms' },
+      placeholder: { queue: 'Loading...', lag: '--' }
+    },
+    get current() { return this.states[this.mode]; }
+  }">
+    <h1>Alpine Job Queue</h1>
+    <div class="metric">pending jobs <strong id="alpine-queue-depth" class="value" x-text="current.queue"></strong></div>
+    <div class="metric">consumer lag <strong id="alpine-worker-lag" class="value" x-text="current.lag"></strong></div>
+    <button id="alpine-baseline-toggle" @click="mode = 'baseline'">Baseline</button>
+    <button id="alpine-surge-toggle" @click="mode = 'surge'">Surge</button>
+    <button id="alpine-placeholder-toggle" @click="mode = 'placeholder'">Placeholder refresh</button>
+  </section>
+</body>
+</html>

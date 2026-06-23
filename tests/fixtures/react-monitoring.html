@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MayWatch React Numeric Monitoring Fixture</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; margin: 32px; background: #101827; color: #e5e7eb; }
+    .card { max-width: 520px; padding: 24px; border: 1px solid #263244; border-radius: 18px; background: #162033; }
+    .metric { display: flex; justify-content: space-between; margin: 14px 0; font-size: 18px; }
+    .value { color: #a78bfa; font-variant-numeric: tabular-nums; }
+    button { margin-right: 8px; padding: 8px 12px; border: 0; border-radius: 10px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module">
+    import React, { useState } from 'https://esm.sh/react@18.2.0';
+    import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+
+    function Dashboard() {
+      const [state, setState] = useState('baseline');
+      const metrics = {
+        baseline: { latency: 'Latency 120ms', errorRate: 'Error rate 0.12%' },
+        spike: { latency: 'Latency 248ms', errorRate: 'Error rate 1.84%' },
+        placeholder: { latency: 'Loading...', errorRate: '--' },
+      }[state];
+
+      return React.createElement('section', { className: 'card' },
+        React.createElement('h1', null, 'React API Gateway'),
+        React.createElement('div', { className: 'metric' }, 'p95 latency', React.createElement('strong', { id: 'react-latency', className: 'value' }, metrics.latency)),
+        React.createElement('div', { className: 'metric' }, 'error budget burn', React.createElement('strong', { id: 'react-error-rate', className: 'value' }, metrics.errorRate)),
+        React.createElement('button', { id: 'react-baseline-toggle', onClick: () => setState('baseline') }, 'Baseline'),
+        React.createElement('button', { id: 'react-spike-toggle', onClick: () => setState('spike') }, 'Spike'),
+        React.createElement('button', { id: 'react-placeholder-toggle', onClick: () => setState('placeholder') }, 'Placeholder refresh')
+      );
+    }
+
+    createRoot(document.getElementById('root')).render(React.createElement(Dashboard));
+  </script>
+</body>
+</html>
