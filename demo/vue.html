@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vue Monitor · MayWatch Demo</title>
+<link rel="stylesheet" href="styles.css" />
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>💚 Vue 监控面板</h1>
+    <span class="fw">Vue 3</span>
+  </div>
+  <p class="sub">
+    CDN 免构建。响应式数据每 3 秒刷新；挂载后<b>库存</b>先显示占位
+    <code style="color:#c4b5fd">—</code> 再回填。
+    <a href="index.html">← 返回场景列表</a>
+  </p>
+
+  <div id="app">
+    <div class="metrics">
+      <div
+        v-for="meta in meta"
+        :key="meta.key"
+        class="metric"
+        :class="dirClass(meta.key)"
+        :data-key="meta.key"
+      >
+        <div class="label">{{ meta.label }}</div>
+        <div class="value" :class="{ placeholder: isPlaceholder(meta.key) }" :id="meta.id">
+          {{ display(meta.key) }}
+        </div>
+        <div class="sel">{{ meta.sel }}</div>
+      </div>
+    </div>
+    <div class="bar">
+      <span class="dot"></span> 实时推送中
+      <button @click="bump">手动 +1 次变化</button>
+      <button class="ghost" @click="simReload">模拟刷新（占位回填）</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  createMetricModel, tickMetrics, formatMetrics, METRIC_META,
+  PLACEHOLDER_KEYS, PLACEHOLDER_TEXT, RELOAD_FILL_DELAY_MS, TICK_MS,
+} from './metrics.js';
+
+const { createApp, reactive, toRefs } = Vue;
+
+createApp({
+  setup() {
+    const state = reactive({
+      model: createMetricModel(),
+      prev: null,
+      ready: false,
+    });
+
+    function fillSoon() {
+      state.ready = false;
+      setTimeout(() => { state.ready = true; }, RELOAD_FILL_DELAY_MS);
+    }
+
+    function bump() {
+      state.prev = state.model;
+      state.model = tickMetrics(state.model);
+    }
+
+    fillSoon();
+    setInterval(bump, TICK_MS);
+
+    const display = (key) =>
+      isPlaceholder(key) ? PLACEHOLDER_TEXT : formatMetrics(state.model)[key];
+
+    const isPlaceholder = (key) => !state.ready && PLACEHOLDER_KEYS.includes(key);
+
+    const dirClass = (key) => {
+      if (!state.prev) return '';
+      const d = state.model[key] - state.prev[key];
+      return d > 0 ? 'up' : d < 0 ? 'down' : '';
+    };
+
+    return {
+      ...toRefs(state),
+      meta: METRIC_META,
+      display, isPlaceholder, dirClass, bump,
+      simReload: fillSoon,
+    };
+  },
+}).mount('#app');
+</script>
+</body>
+</html>

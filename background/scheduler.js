@@ -1,6 +1,6 @@
 import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint } from './storage.js';
 import { fetchPageContent } from './fetcher.js';
-import { computeDiff, createChangeRecord } from './differ.js';
+import { decideCheck, createChangeRecord } from './differ.js';
 import { sendFeishuNotification } from './notifier.js';
 
 const MAX_CONTENT_SIZE = 500 * 1024;
@@ -51,27 +51,43 @@ export async function checkSingleTask(task) {
   const snapshot = await getSnapshot(task.id);
   const now = Date.now();
 
+  const decision = decideCheck(task, snapshot, content);
+
+  // A transient placeholder (e.g. "—"/"Loading…") while the page re-fetches:
+  // keep the last good snapshot and skip without touching lastCheckedAt's diff.
+  if (decision.action === 'skip') {
+    task.lastCheckedAt = now;
+    await saveTask(task);
+    return { taskId: task.id, status: 'skipped', reason: decision.reason };
+  }
+
   task.lastCheckedAt = now;
   await saveTask(task);
 
-  if (!snapshot) {
-    await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
+  await saveSnapshot({ taskId: task.id, content: decision.content, timestamp: now, url: task.url });
+
+  if (decision.action === 'first_snapshot') {
+    if (decision.numericPoint != null) {
+      await addNumericPoint(task.id, decision.numericPoint, now);
+    }
     return { taskId: task.id, status: 'first_snapshot' };
   }
 
-  const diffResult = computeDiff(snapshot.content, content);
-
-  await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
-
-  if (!diffResult) {
+  if (decision.action === 'no_change') {
     return { taskId: task.id, status: 'no_change' };
   }
 
-  const changeRecord = createChangeRecord(task, snapshot.content, content, diffResult);
+  const changeRecord = createChangeRecord(
+    task,
+    snapshot.content,
+    decision.content,
+    decision.diffResult,
+    { isNumeric: decision.isNumeric, numericValue: decision.numericValue },
+  );
   await addChange(changeRecord);
 
-  if (changeRecord.isNumeric) {
-    await addNumericPoint(task.id, changeRecord.numericValue, changeRecord.detectedAt);
+  if (decision.numericPoint != null) {
+    await addNumericPoint(task.id, decision.numericPoint, changeRecord.detectedAt);
   }
 
   broadcastChange(changeRecord);

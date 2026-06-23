@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vanilla Dashboard · MayWatch Demo</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>📊 实时监控面板</h1>
+    <span class="fw">Vanilla JS</span>
+  </div>
+  <p class="sub">
+    纯静态页面。数值每 3 秒刷新一次；<b>库存</b>在页面刷新后会先显示占位
+    <code style="color:#c4b5fd">—</code> 再回填，用于验证占位兼容。
+    <a href="index.html">← 返回场景列表</a>
+  </p>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="bar">
+    <span class="dot"></span> 实时推送中
+    <button id="bump">手动 +1 次变化</button>
+    <button id="reload" class="ghost">模拟刷新（占位回填）</button>
+  </div>
+</div>
+
+<script type="module">
+import {
+  createMetricModel, tickMetrics, formatMetrics, METRIC_META,
+  PLACEHOLDER_KEYS, PLACEHOLDER_TEXT, RELOAD_FILL_DELAY_MS, TICK_MS,
+} from './metrics.js';
+
+const root = document.getElementById('metrics');
+let model = createMetricModel();
+
+root.innerHTML = METRIC_META.map(meta => `
+  <div class="metric" data-key="${meta.key}">
+    <div class="label">${meta.label}</div>
+    <div class="value" id="${meta.id}">…</div>
+    <div class="sel">${meta.sel}</div>
+  </div>
+`).join('');
+
+function paint(prev) {
+  const f = formatMetrics(model);
+  for (const meta of METRIC_META) {
+    const el = document.getElementById(meta.id);
+    el.classList.remove('placeholder');
+    el.textContent = f[meta.key];
+    const card = el.closest('.metric');
+    if (prev) {
+      card.classList.toggle('up', model[meta.key] > prev[meta.key]);
+      card.classList.toggle('down', model[meta.key] < prev[meta.key]);
+    }
+  }
+}
+
+// Placeholder-on-load: stock starts as "—", fills in after a delay.
+function showPlaceholders() {
+  for (const key of PLACEHOLDER_KEYS) {
+    const meta = METRIC_META.find(m => m.key === key);
+    const el = document.getElementById(meta.id);
+    el.textContent = PLACEHOLDER_TEXT;
+    el.classList.add('placeholder');
+  }
+}
+
+showPlaceholders();
+// Fill non-placeholder metrics immediately, placeholders after the delay.
+const firstFill = formatMetrics(model);
+for (const meta of METRIC_META) {
+  if (PLACEHOLDER_KEYS.includes(meta.key)) continue;
+  document.getElementById(meta.id).textContent = firstFill[meta.key];
+}
+setTimeout(() => paint(null), RELOAD_FILL_DELAY_MS);
+
+setInterval(() => {
+  const prev = model;
+  model = tickMetrics(model);
+  paint(prev);
+}, TICK_MS);
+
+document.getElementById('bump').addEventListener('click', () => {
+  const prev = model;
+  model = tickMetrics(model);
+  paint(prev);
+});
+document.getElementById('reload').addEventListener('click', () => {
+  showPlaceholders();
+  setTimeout(() => paint(null), RELOAD_FILL_DELAY_MS);
+});
+</script>
+</body>
+</html>

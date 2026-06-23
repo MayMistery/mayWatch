@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>React Metrics · MayWatch Demo</title>
+<link rel="stylesheet" href="styles.css" />
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>⚛️ React 指标面板</h1>
+    <span class="fw">React 18</span>
+  </div>
+  <p class="sub">
+    CDN 免构建（原生 ESM + <code>React.createElement</code>）。<code>useState</code> 驱动指标；
+    组件挂载时库存先显示占位 <code style="color:#c4b5fd">—</code>，异步回填。
+    <a href="index.html">← 返回场景列表</a>
+  </p>
+  <div id="app"></div>
+</div>
+
+<script type="module">
+import {
+  createMetricModel, tickMetrics, formatMetrics, METRIC_META,
+  PLACEHOLDER_KEYS, PLACEHOLDER_TEXT, RELOAD_FILL_DELAY_MS, TICK_MS,
+} from './metrics.js';
+
+const { useState, useEffect, useRef } = React;
+const h = React.createElement;
+
+function Metric({ meta, text, dir }) {
+  const cls = 'metric' + (dir > 0 ? ' up' : dir < 0 ? ' down' : '');
+  const valCls = 'value' + (text === PLACEHOLDER_TEXT ? ' placeholder' : '');
+  return h('div', { className: cls, 'data-key': meta.key },
+    h('div', { className: 'label' }, meta.label),
+    h('div', { className: valCls, id: meta.id }, text),
+    h('div', { className: 'sel' }, meta.sel),
+  );
+}
+
+function App() {
+  const [model, setModel] = useState(createMetricModel);
+  const [ready, setReady] = useState(false);
+  const prev = useRef(null);
+
+  const bump = () => setModel(m => { prev.current = m; return tickMetrics(m); });
+
+  useEffect(() => {
+    // Placeholder-on-mount: stock fills in after the delay.
+    const fill = setTimeout(() => setReady(true), RELOAD_FILL_DELAY_MS);
+    const id = setInterval(bump, TICK_MS);
+    return () => { clearTimeout(fill); clearInterval(id); };
+  }, []);
+
+  const f = formatMetrics(model);
+
+  const cards = METRIC_META.map(meta => {
+    const hidden = !ready && PLACEHOLDER_KEYS.includes(meta.key);
+    const text = hidden ? PLACEHOLDER_TEXT : f[meta.key];
+    const dir = prev.current ? Math.sign(model[meta.key] - prev.current[meta.key]) : 0;
+    return h(Metric, { key: meta.key, meta, text, dir });
+  });
+
+  return h('div', null,
+    h('div', { className: 'metrics' }, cards),
+    h('div', { className: 'bar' },
+      h('span', { className: 'dot' }),
+      ' 实时推送中 ',
+      h('button', { onClick: bump }, '手动 +1 次变化'),
+      h('button', {
+        className: 'ghost',
+        onClick: () => { setReady(false); setTimeout(() => setReady(true), RELOAD_FILL_DELAY_MS); },
+      }, '模拟刷新（占位回填）'),
+    ),
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app')).render(h(App));
+</script>
+</body>
+</html>

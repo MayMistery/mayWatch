@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MayWatch · 监控测试场景</title>
+<style>
+  :root {
+    --bg: #0f0f1e; --card: #1a1a2e; --line: #2a2a44;
+    --ink: #e6e6f0; --muted: #8b8ba7; --accent: #8b5cf6; --accent2: #6366f1;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    padding: 48px 20px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 32px; line-height: 1.6; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  a.card {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px; transition: transform .15s, border-color .15s;
+  }
+  a.card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .card .badge {
+    display: inline-block; font-size: 11px; letter-spacing: .5px; text-transform: uppercase;
+    color: var(--accent); background: rgba(139,92,246,.12); padding: 2px 8px; border-radius: 6px;
+  }
+  .card h2 { font-size: 17px; margin: 12px 0 6px; }
+  .card p { font-size: 13px; color: var(--muted); margin: 0; line-height: 1.55; }
+  .note {
+    margin-top: 32px; background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 20px; font-size: 13.5px; color: var(--muted); line-height: 1.7;
+  }
+  .note code { background: #00000055; padding: 2px 6px; border-radius: 5px; color: #c4b5fd; }
+  .note b { color: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>👁 MayWatch 监控测试场景</h1>
+  <p class="sub">
+    用于红绿测试数值追踪与趋势图。每个页面都暴露<b>稳定的 CSS 选择器</b>，并以不同格式（整数 / 小数 / 带单位 / 货币）实时刷新数值；
+    同时复现「<b>页面刷新时数字元素先变占位值再回填</b>」的场景。
+  </p>
+
+  <div class="grid">
+    <a class="card" href="vanilla.html">
+      <span class="badge">原生 JS</span>
+      <h2>Vanilla Dashboard</h2>
+      <p>纯静态页面，离线可用。含占位值刷新场景（库存先显示 <code>—</code> 再回填）。</p>
+    </a>
+    <a class="card" href="react.html">
+      <span class="badge">React 18</span>
+      <h2>React Metrics</h2>
+      <p>CDN + Babel 免构建。useState 驱动指标，组件挂载时短暂占位。</p>
+    </a>
+    <a class="card" href="vue.html">
+      <span class="badge">Vue 3</span>
+      <h2>Vue Monitor</h2>
+      <p>CDN 免构建。响应式数据，挂载后异步回填占位值。</p>
+    </a>
+  </div>
+
+  <div class="note">
+    <b>怎么用：</b><br />
+    1. 在 Chrome 加载本扩展（<code>chrome://extensions</code> → 加载已解压）。<br />
+    2. 打开任一 demo 页，右键某个数值元素 → <b>用 MayWatch 监控此元素</b>，或在 Popup 手动填选择器。<br />
+    3. 开启<b>数值追踪</b>，按下表选择模式：<br />
+    &nbsp;&nbsp;• <code>#online-count</code> 在线人数 → 整数 / 自动<br />
+    &nbsp;&nbsp;• <code>#latency</code> 响应延迟 → 带单位，或正则 <code>(\d+)ms</code><br />
+    &nbsp;&nbsp;• <code>#cpu</code> CPU → 带单位（<code>%</code>）<br />
+    &nbsp;&nbsp;• <code>#load</code> 负载 → 小数<br />
+    &nbsp;&nbsp;• <code>#price</code> 价格 → 货币<br />
+    &nbsp;&nbsp;• <code>#stock</code> 库存 → 整数（刷新时会先变 <code>—</code>，验证占位兼容）<br />
+    4. 数值变化 ≥ 1 次即应出现<b>趋势图</b>（首次快照已记录基线点），而非只有 diff。
+  </div>
+</div>
+</body>
+</html>
