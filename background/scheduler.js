@@ -61,17 +61,18 @@ export async function checkSingleTask(task) {
 
   const diffResult = computeDiff(snapshot.content, content);
 
-  await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
-
   if (!diffResult) {
+    await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
     return { taskId: task.id, status: 'no_change' };
   }
 
-  // 占位值兼容：如果新内容是占位值（如 "--"、"Loading..."），跳过变更记录
-  // 避免页面刷新时的短暂占位值污染变更历史和数值历史
+  // 占位值兼容：如果新内容是占位值（如 "--"、"Loading..."），不更新快照也不产生变更记录
+  // 避免页面刷新时的短暂占位值污染快照基线、变更历史和数值历史
   if (isPlaceholderContent(content)) {
     return { taskId: task.id, status: 'placeholder_skipped' };
   }
+
+  await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
 
   const changeRecord = createChangeRecord(task, snapshot.content, content, diffResult);
   await addChange(changeRecord);

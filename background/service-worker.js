@@ -8,6 +8,10 @@ import { testFeishuWebhook } from './notifier.js';
 
 setupScheduler();
 
+// Test hook: expose internal functions for E2E testing via CDP
+import { fetchPageContent } from './fetcher.js';
+self.__maywatch_test__ = { checkAllTasks, getNumericHistory, getTasks, getChanges, fetchPageContent };
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: 'maywatch-monitor-element',

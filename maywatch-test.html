@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MayWatch 测试页面</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; padding: 40px; }
+    .container { max-width: 600px; margin: 0 auto; }
+    h1 { font-size: 24px; margin-bottom: 24px; color: #38bdf8; }
+    .hero-card { background: #1e293b; border-radius: 16px; padding: 32px; border: 2px solid #334155; text-align: center; }
+    .hero-label { font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+    .hero-value { font-size: 64px; font-weight: 800; font-variant-numeric: tabular-nums; color: #4ade80; line-height: 1; margin-bottom: 8px; }
+    .hero-unit { font-size: 18px; color: #64748b; margin-left: 4px; }
+    .hero-change { font-size: 14px; margin-top: 8px; }
+    .hero-change.up { color: #4ade80; }
+    .hero-change.down { color: #f87171; }
+    .hero-change.stable { color: #888; }
+    .controls { margin-top: 32px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    button { padding: 10px 20px; border: none; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.15s; }
+    button:hover { transform: translateY(-1px); }
+    .btn-up { background: #4ade80; color: #0f172a; }
+    .btn-down { background: #f87171; color: #0f172a; }
+    .btn-random { background: #6366f1; color: white; }
+    .btn-refresh { background: #334155; color: #e2e8f0; }
+    .info { margin-top: 24px; padding: 12px; background: #1e293b; border-radius: 8px; font-size: 12px; color: #64748b; text-align: center; }
+    .info strong { color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MayWatch 数值监控测试</h1>
+    <div class="hero-card">
+      <div class="hero-label">营收 (Revenue)</div>
+      <div>
+        <span class="hero-value" id="heroRevenue">1250000</span>
+        <span class="hero-unit">¥</span>
+      </div>
+      <div class="hero-change stable" id="heroChange">—</div>
+    </div>
+    <div class="controls">
+      <button class="btn-up" onclick="changeRevenue(50000)">+50,000</button>
+      <button class="btn-down" onclick="changeRevenue(-30000)">-30,000</button>
+      <button class="btn-random" onclick="randomRevenue()">随机</button>
+      <button class="btn-refresh" onclick="simulateRefresh()">模拟刷新（占位值）</button>
+    </div>
+    <div class="info">
+      <strong>测试场景：</strong> 监控 #heroRevenue 元素，验证数值追踪趋势图和占位值兼容性。
+      点击"模拟刷新"会短暂显示 "--"，1.5 秒后恢复新值。
+    </div>
+  </div>
+
+  <script>
+    let revenue = 1250000;
+    let prevRevenue = null;
+
+    function updateDisplay(value, prev) {
+      document.getElementById('heroRevenue').textContent = value;
+
+      const change = document.getElementById('heroChange');
+      if (prev !== null && typeof prev === 'number' && typeof value === 'number') {
+        const diff = value - prev;
+        if (diff > 0) {
+          change.textContent = `↑ +${diff.toLocaleString()}`;
+          change.className = 'hero-change up';
+        } else if (diff < 0) {
+          change.textContent = `↓ ${diff.toLocaleString()}`;
+          change.className = 'hero-change down';
+        } else {
+          change.textContent = '— 无变化';
+          change.className = 'hero-change stable';
+        }
+      } else {
+        change.textContent = '—';
+        change.className = 'hero-change stable';
+      }
+    }
+
+    function changeRevenue(delta) {
+      prevRevenue = revenue;
+      revenue += delta;
+      updateDisplay(revenue, prevRevenue);
+    }
+
+    function randomRevenue() {
+      prevRevenue = revenue;
+      revenue = Math.floor(800000 + Math.random() * 900000);
+      updateDisplay(revenue, prevRevenue);
+    }
+
+    function simulateRefresh() {
+      // 模拟刷新：先显示占位值
+      document.getElementById('heroRevenue').textContent = '--';
+      document.getElementById('heroChange').textContent = '刷新中...';
+      document.getElementById('heroChange').className = 'hero-change stable';
+
+      setTimeout(() => {
+        prevRevenue = revenue;
+        revenue = Math.floor(800000 + Math.random() * 900000);
+        updateDisplay(revenue, prevRevenue);
+      }, 1500);
+    }
+  </script>
+</body>
+</html>

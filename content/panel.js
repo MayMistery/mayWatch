@@ -434,17 +434,9 @@ export class Panel {
 
   async ensureChart() {
     if (Chart) return;
-    try {
-      const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.warn('[MayWatch] Chart.js load failed:', err);
-    }
+    // Chart.js is loaded as a content script (manifest.json), setting window.Chart
+    // in the content script's isolated world.
+    Chart = window.Chart;
   }
 
   async showDetail(change) {
@@ -489,7 +481,6 @@ export class Panel {
 
   async renderTrendChart(taskId) {
     const container = this.root.getElementById('mw-chart-container');
-    const canvas = this.root.getElementById('mw-trend-chart');
 
     try {
       const resp = await chrome.runtime.sendMessage({ type: 'GET_NUMERIC_HISTORY', taskId });
@@ -497,7 +488,6 @@ export class Panel {
 
       if (history.length < 2) {
         container.classList.remove('hidden');
-        // 显示数据收集中提示
         container.innerHTML = `
           <div class="mw-chart-placeholder">
             <span class="mw-chart-placeholder-icon">📊</span>
@@ -514,7 +504,6 @@ export class Panel {
         return;
       }
 
-      // 恢复 canvas 元素
       container.classList.remove('hidden');
       container.innerHTML = '<canvas id="mw-trend-chart"></canvas>';
       const newCanvas = container.querySelector('#mw-trend-chart');

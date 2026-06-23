@@ -65,7 +65,7 @@
   host.style.cssText = 'all:initial !important; position:fixed !important; top:0 !important; right:0 !important; width:0 !important; height:0 !important; overflow:visible !important; z-index:2147483647 !important; pointer-events:none !important;';
   document.body.appendChild(host);
 
-  const shadow = host.attachShadow({ mode: 'closed' });
+  const shadow = host.attachShadow({ mode: 'open' });
 
   const cssUrl = chrome.runtime.getURL('content/panel.css');
   const htmlUrl = chrome.runtime.getURL('content/panel.html');
