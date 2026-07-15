@@ -1,7 +1,16 @@
-import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint } from './storage.js';
+import {
+  getTasks,
+  saveTask,
+  getSnapshot,
+  saveSnapshot,
+  addChange,
+  getSettings,
+  addNumericPointIfChanged,
+} from './storage.js';
 import { fetchPageContent } from './fetcher.js';
 import { computeDiff, createChangeRecord } from './differ.js';
 import { sendFeishuNotification } from './notifier.js';
+import { extractNumericValue } from './numeric.js';
 
 const MAX_CONTENT_SIZE = 500 * 1024;
 const TICK_INTERVAL_MS = 1000;
@@ -54,6 +63,11 @@ export async function checkSingleTask(task) {
   task.lastCheckedAt = now;
   await saveTask(task);
 
+  const numericResult = extractNumericValue(content, task);
+  if (numericResult.ok) {
+    await addNumericPointIfChanged(task.id, numericResult.value, now);
+  }
+
   if (!snapshot) {
     await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
     return { taskId: task.id, status: 'first_snapshot' };
@@ -67,12 +81,14 @@ export async function checkSingleTask(task) {
     return { taskId: task.id, status: 'no_change' };
   }
 
-  const changeRecord = createChangeRecord(task, snapshot.content, content, diffResult);
+  const changeRecord = createChangeRecord(
+    task,
+    snapshot.content,
+    content,
+    diffResult,
+    numericResult,
+  );
   await addChange(changeRecord);
-
-  if (changeRecord.isNumeric) {
-    await addNumericPoint(task.id, changeRecord.numericValue, changeRecord.detectedAt);
-  }
 
   broadcastChange(changeRecord);
 

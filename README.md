@@ -48,7 +48,8 @@ mayWatch/
 │   ├── service-worker.js      # Message hub & context menu handler
 │   ├── scheduler.js           # setInterval-based polling engine
 │   ├── fetcher.js             # Tab-first extraction → Offscreen fallback
-│   ├── differ.js              # Myers diff + configurable numeric extraction
+│   ├── differ.js              # Myers diff + change records
+│   ├── numeric.js             # Configurable numeric extraction
 │   ├── storage.js             # chrome.storage.local CRUD
 │   ├── notifier.js            # Feishu webhook (HMAC-SHA256)
 │   ├── parser.js              # Offscreen Document DOMParser script
@@ -79,7 +80,7 @@ mayWatch/
 ```
 Scheduler (1s tick)
     → Fetcher (live tab extraction / offscreen fetch+parse)
-    → Differ (Myers diff + numeric extract)
+    → Numeric sampler + Differ (numeric history + Myers diff)
     → Storage (snapshots, changes, numeric history)
     → Broadcast (runtime + tabs messaging)
     → Notifier (optional Feishu webhook)
@@ -136,7 +137,7 @@ When creating a task, enable **Numeric Tracking** and choose a mode:
 | `template` | Presets: integer, decimal, with-unit (`11812ms`), currency (`¥89.9`) |
 | `regex` | Your own capture group, e.g. `(\d+)ms` |
 
-Numeric values are plotted as **sparklines** in the task list and **trend charts** in the detail view.
+The first valid value is stored as a baseline. Later checks add a point only when the extracted value changes, avoiding duplicate samples during unchanged polling. After two valid points are available, values are plotted as **sparklines** in the task list and **trend charts** in the detail view.
 
 ### Feishu Notification
 
@@ -167,7 +168,7 @@ Numeric values are plotted as **sparklines** in the task list and **trend charts
 - **Tab-first extraction** — `chrome.scripting.executeScript` for live SPA DOM, with fetch+parse fallback
 - **Shadow DOM isolation** — panel styles never leak to or from the host page
 - **Zero build tooling** — pure ES modules, no bundler, no transpiler
-- **Chart.js via Blob URL** — loaded into Shadow DOM context without CSP issues
+- **Bundled Chart.js** — loaded from a local extension resource inside the isolated content-script world
 
 ---
 

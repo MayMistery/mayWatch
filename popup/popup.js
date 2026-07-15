@@ -120,6 +120,7 @@ function bindEvents() {
 }
 
 function openModal(task = null) {
+  $("#runtimeResetHint").classList.toggle("show", Boolean(task));
   if (task) {
     $("#modalTitle").textContent = "编辑监控";
     $("#taskId").value = task.id;
@@ -158,6 +159,7 @@ function openModal(task = null) {
 
 function closeModal() {
   modalOverlay.classList.remove("active");
+  $("#runtimeResetHint").classList.remove("show");
   taskForm.reset();
   $("#taskId").value = "";
 }

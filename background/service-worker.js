@@ -2,7 +2,7 @@ import { setupScheduler, checkSingleTask, checkAllTasks } from './scheduler.js';
 import {
   getTasks, saveTask, deleteTask, getChanges, markRead,
   markAllRead, getSettings, saveSettings, getUnreadCount,
-  getNumericHistory,
+  getNumericHistory, resetTaskRuntimeData, hasTaskRuntimeSemanticChange,
 } from './storage.js';
 import { testFeishuWebhook } from './notifier.js';
 
@@ -83,9 +83,16 @@ async function handleMessage(message, sender) {
       return { type: 'TASKS_DATA', tasks };
     }
 
-    case 'SAVE_TASK':
+    case 'SAVE_TASK': {
+      const tasks = await getTasks();
+      const previous = tasks.find(task => task.id === message.task.id);
+      const runtimeDataReset = hasTaskRuntimeSemanticChange(previous, message.task);
       await saveTask(message.task);
-      return { success: true };
+      if (runtimeDataReset) {
+        await resetTaskRuntimeData(message.task.id);
+      }
+      return { success: true, runtimeDataReset };
+    }
 
     case 'DELETE_TASK':
       await deleteTask(message.taskId);
