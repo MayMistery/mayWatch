@@ -1,4 +1,5 @@
 let Chart;
+let chartLoadPromise;
 
 export class Panel {
   constructor(shadowRoot) {
@@ -10,6 +11,8 @@ export class Panel {
     this.viewMode = 'tasks';
     this.expandedTasks = new Set();
     this.trendChart = null;
+    this.sparklineCharts = new Map();
+    this.sparklineRenderToken = 0;
     this.bindEvents();
     this.loadChanges();
   }
@@ -201,6 +204,7 @@ export class Panel {
   renderTasksView() {
     const body = this.root.getElementById('mw-body');
     const footer = this.root.getElementById('mw-footer-info');
+    this.destroySparklines();
 
     const grouped = new Map();
     for (const c of this.changes) {
@@ -235,14 +239,19 @@ export class Panel {
 
     body.innerHTML = taskOrder.map(({ task, changes }) => {
       const unreadCount = changes.filter(c => !c.read).length;
-      const latest = changes[0];
       const expanded = this.expandedTasks.has(task.id);
-      const hasNumeric = changes.some(c => c.isNumeric);
+      const isStoredTask = this.tasks.some(item => item.id === task.id);
+      const hasNumeric = isStoredTask
+        ? Boolean(task.numericMode && task.numericMode !== 'off')
+        : changes.some(c => c.isNumeric);
       const domain = this.extractDomain(task.url);
 
       let sparklineHtml = '';
       if (hasNumeric) {
-        sparklineHtml = `<canvas class="mw-task-group-sparkline" data-task-id="${task.id}"></canvas>`;
+        sparklineHtml = `
+          <span class="mw-task-group-numeric-status" data-numeric-status="${task.id}">—</span>
+          <canvas class="mw-task-group-sparkline hidden" data-task-id="${task.id}"></canvas>
+        `;
       }
 
       let changesHtml = '';
@@ -323,6 +332,7 @@ export class Panel {
   renderTimelineView() {
     const body = this.root.getElementById('mw-body');
     const footer = this.root.getElementById('mw-footer-info');
+    this.destroySparklines();
 
     if (this.changes.length === 0) {
       body.innerHTML = `
@@ -388,20 +398,59 @@ export class Panel {
   }
 
   async renderSparklines() {
-    const canvases = this.root.querySelectorAll('.mw-task-group-sparkline');
+    const renderToken = ++this.sparklineRenderToken;
+    const canvases = Array.from(this.root.querySelectorAll('.mw-task-group-sparkline'));
     if (canvases.length === 0) return;
 
-    await this.ensureChart();
-    if (!Chart) return;
-
-    for (const canvas of canvases) {
+    const entries = await Promise.all(canvases.map(async canvas => {
       const taskId = canvas.dataset.taskId;
       try {
         const resp = await chrome.runtime.sendMessage({ type: 'GET_NUMERIC_HISTORY', taskId });
+        if (resp?.error) throw new Error(resp.error);
         const history = resp?.history || [];
-        if (history.length < 2) continue;
+        return { canvas, taskId, history };
+      } catch (error) {
+        console.warn(`[MayWatch] Failed to load numeric history for ${taskId}`, error);
+        return { canvas, taskId, history: [], error };
+      }
+    }));
 
-        new Chart(canvas.getContext('2d'), {
+    if (renderToken !== this.sparklineRenderToken) return;
+
+    for (const { canvas, taskId, history, error } of entries) {
+      const status = this.root.querySelector(`[data-numeric-status="${CSS.escape(taskId)}"]`);
+      if (error) {
+        if (status) status.textContent = '!';
+      } else if (history.length === 0) {
+        if (status) status.textContent = '—';
+      } else if (history.length === 1) {
+        if (status) status.textContent = String(history[0].value);
+      }
+    }
+
+    const readyEntries = entries.filter(entry => entry.history.length >= 2);
+    if (readyEntries.length === 0) return;
+
+    try {
+      await this.ensureChart();
+    } catch (error) {
+      console.warn('[MayWatch] Chart.js load failed:', error);
+      for (const { taskId } of readyEntries) {
+        const status = this.root.querySelector(`[data-numeric-status="${CSS.escape(taskId)}"]`);
+        if (status) status.textContent = '!';
+      }
+      return;
+    }
+
+    if (renderToken !== this.sparklineRenderToken) return;
+
+    for (const { canvas, taskId, history } of readyEntries) {
+      if (!canvas.isConnected) continue;
+      const status = this.root.querySelector(`[data-numeric-status="${CSS.escape(taskId)}"]`);
+      try {
+        canvas.classList.remove('hidden');
+        if (status) status.classList.add('hidden');
+        const chart = new Chart(canvas.getContext('2d'), {
           type: 'line',
           data: {
             labels: history.map(() => ''),
@@ -428,23 +477,48 @@ export class Panel {
             animation: false,
           },
         });
-      } catch { /* ignore */ }
+        this.sparklineCharts.set(taskId, chart);
+      } catch (error) {
+        canvas.classList.add('hidden');
+        if (status) {
+          status.classList.remove('hidden');
+          status.textContent = '!';
+        }
+        console.warn(`[MayWatch] Failed to render sparkline for ${taskId}`, error);
+      }
     }
   }
 
-  async ensureChart() {
-    if (Chart) return;
-    try {
-      const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.warn('[MayWatch] Chart.js load failed:', err);
+  destroySparklines() {
+    this.sparklineRenderToken++;
+    for (const chart of this.sparklineCharts.values()) {
+      try {
+        chart.destroy();
+      } catch (error) {
+        console.warn('[MayWatch] Failed to destroy sparkline', error);
+      }
     }
+    this.sparklineCharts.clear();
+  }
+
+  async ensureChart() {
+    if (Chart) return Chart;
+    if (!chartLoadPromise) {
+      chartLoadPromise = import(
+        chrome.runtime.getURL('lib/vendor/chart.umd.min.js')
+      ).then(() => {
+        const loadedChart = globalThis.Chart;
+        if (typeof loadedChart !== 'function') {
+          throw new Error('Chart.js UMD loaded without globalThis.Chart');
+        }
+        Chart = loadedChart;
+        return Chart;
+      }).catch(error => {
+        chartLoadPromise = undefined;
+        throw error;
+      });
+    }
+    return chartLoadPromise;
   }
 
   async showDetail(change) {
@@ -480,28 +554,45 @@ export class Panel {
   async renderTrendChart(taskId) {
     const container = this.root.getElementById('mw-chart-container');
     const canvas = this.root.getElementById('mw-trend-chart');
+    const status = this.root.getElementById('mw-chart-status');
+    const task = this.tasks.find(item => item.id === taskId);
+    const isNumericTask = task
+      ? task.numericMode && task.numericMode !== 'off'
+      : Boolean(this.currentChange?.isNumeric);
+
+    if (this.trendChart) {
+      this.trendChart.destroy();
+      this.trendChart = null;
+    }
+
+    if (!isNumericTask) {
+      container.classList.add('hidden');
+      return;
+    }
+
+    container.classList.remove('hidden');
+    canvas.classList.add('hidden');
+    status.className = 'mw-chart-status';
+    status.textContent = '正在读取数值历史…';
 
     try {
       const resp = await chrome.runtime.sendMessage({ type: 'GET_NUMERIC_HISTORY', taskId });
+      if (resp?.error) throw new Error(resp.error);
       const history = resp?.history || [];
 
-      if (history.length < 2) {
-        container.classList.add('hidden');
+      if (history.length === 0) {
+        status.textContent = '尚未采集到有效数值';
+        return;
+      }
+
+      if (history.length === 1) {
+        status.textContent = `当前值 ${history[0].value} · 再采集到一个不同数值后显示趋势`;
         return;
       }
 
       await this.ensureChart();
-      if (!Chart) {
-        container.classList.add('hidden');
-        return;
-      }
-
-      container.classList.remove('hidden');
-
-      if (this.trendChart) {
-        this.trendChart.destroy();
-        this.trendChart = null;
-      }
+      status.classList.add('hidden');
+      canvas.classList.remove('hidden');
 
       this.trendChart = new Chart(canvas.getContext('2d'), {
         type: 'line',
@@ -550,8 +641,11 @@ export class Panel {
           animation: { duration: 300 },
         },
       });
-    } catch {
-      container.classList.add('hidden');
+    } catch (error) {
+      canvas.classList.add('hidden');
+      status.className = 'mw-chart-status error';
+      status.textContent = '趋势图加载失败';
+      console.warn(`[MayWatch] Failed to render trend chart for ${taskId}`, error);
     }
   }
 

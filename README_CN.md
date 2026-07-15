@@ -48,7 +48,8 @@ mayWatch/
 │   ├── service-worker.js      # 消息中枢 & 右键菜单处理
 │   ├── scheduler.js           # 基于 setInterval 的轮询引擎
 │   ├── fetcher.js             # 优先从标签页提取 → Offscreen 兜底
-│   ├── differ.js              # Myers diff + 可配置数值提取
+│   ├── differ.js              # Myers diff + 变化记录
+│   ├── numeric.js             # 可配置数值提取
 │   ├── storage.js             # chrome.storage.local 数据存取
 │   ├── notifier.js            # 飞书 Webhook 通知 (HMAC-SHA256)
 │   ├── parser.js              # Offscreen Document DOMParser 脚本
@@ -79,7 +80,7 @@ mayWatch/
 ```
 调度器 (1s 心跳)
     → 抓取器 (优先标签页内提取 / Offscreen fetch+解析)
-    → 差异器 (Myers diff + 数值提取)
+    → 数值采样器 + 差异器 (数值历史 + Myers diff)
     → 存储层 (快照、变更记录、数值历史)
     → 广播 (runtime + tabs 消息通道)
     → 通知器 (可选飞书 Webhook)
@@ -137,7 +138,7 @@ mayWatch/
 | `template` | 预置模板：纯整数、小数、带单位（`11812ms`）、货币（`¥89.9`） |
 | `regex` | 自定义正则捕获组，如 `(\d+)ms` |
 
-提取到的数值会在任务列表中显示为 **迷你折线图**，在详情页中显示为 **完整趋势图**。
+首次提取到的有效数值会作为基线保存；后续检查仅在数值变化时追加历史点，避免未变化轮询产生重复数据。积累至少两个有效点后，任务列表会显示 **迷你折线图**，详情页会显示 **完整趋势图**。
 
 ### 飞书通知
 
@@ -170,7 +171,7 @@ mayWatch/
 - **标签页优先提取** — `chrome.scripting.executeScript` 获取 SPA 实时 DOM，fetch 兜底
 - **Shadow DOM 隔离** — 面板样式与宿主页面完全互不干扰
 - **零构建工具链** — 纯 ES Modules，无打包器，无转译器
-- **Chart.js Blob URL** — 在 Shadow DOM 中通过 Blob URL 加载，规避 CSP 限制
+- **内置 Chart.js** — 从扩展本地资源加载，并运行在内容脚本隔离环境中
 
 ---
 

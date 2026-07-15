@@ -365,6 +365,22 @@ select.form-input option {
   margin-top: 16px;
 }
 
+.runtime-reset-hint {
+  display: none;
+  margin: -2px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  border-radius: 8px;
+  background: rgba(245, 158, 11, 0.08);
+  color: #b7791f;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.runtime-reset-hint.show {
+  display: block;
+}
+
 .numeric-section {
   border-top: 1px solid #2a2a4a;
   padding-top: 12px;
