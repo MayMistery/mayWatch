@@ -222,6 +222,15 @@ export class Panel {
       }
     }
 
+    // 销毁旧的 sparkline 图表，防止 Chart.js 内部注册表内存泄漏
+    if (Chart) {
+      const oldCanvases = body.querySelectorAll('.mw-task-group-sparkline');
+      for (const canvas of oldCanvases) {
+        const inst = Chart.getChart?.(canvas);
+        if (inst) inst.destroy();
+      }
+    }
+
     if (taskOrder.length === 0) {
       body.innerHTML = `
         <div class="mw-empty">
@@ -434,16 +443,22 @@ export class Panel {
 
   async ensureChart() {
     if (Chart) return;
+    // 防止并发调用导致重复加载
+    if (this.ensureChart._pending) return this.ensureChart._pending.catch(() => {});
     try {
-      const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
+      this.ensureChart._pending = (async () => {
+        // 直接 import 扩展内部 URL（blob: URL 在 MV3 内容脚本中被拦截）
+        const mod = await import(chrome.runtime.getURL('lib/vendor/chart.umd.min.js'));
+        // UMD 包没有 ES export，Chart 构造函数被赋到 globalThis
+        Chart = mod.Chart || mod.default?.Chart || mod.default || globalThis.Chart;
+        if (!Chart) console.warn('[MayWatch] Chart.js loaded but no export found — chart disabled');
+        return Chart;
+      })();
+      await this.ensureChart._pending;
     } catch (err) {
       console.warn('[MayWatch] Chart.js load failed:', err);
+    } finally {
+      delete this.ensureChart._pending;
     }
   }
 
