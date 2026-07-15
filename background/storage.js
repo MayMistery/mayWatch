@@ -16,6 +16,18 @@ export async function saveTask(task) {
   const tasks = await getTasks();
   const idx = tasks.findIndex(t => t.id === task.id);
   if (idx >= 0) {
+    const previous = tasks[idx];
+    const targetChanged = ['url', 'selector', 'selectorType']
+      .some(field => previous[field] !== task[field]);
+    const numericConfigChanged = ['numericMode', 'numericTemplate', 'numericRegex']
+      .some(field => previous[field] !== task[field]);
+
+    if (targetChanged || numericConfigChanged) {
+      await chrome.storage.local.remove([
+        `snapshot:${task.id}`,
+        `numericHistory:${task.id}`,
+      ]);
+    }
     tasks[idx] = task;
   } else {
     tasks.push(task);
@@ -27,7 +39,10 @@ export async function deleteTask(taskId) {
   const tasks = await getTasks();
   const filtered = tasks.filter(t => t.id !== taskId);
   await chrome.storage.local.set({ tasks: filtered });
-  await chrome.storage.local.remove(`snapshot:${taskId}`);
+  await chrome.storage.local.remove([
+    `snapshot:${taskId}`,
+    `numericHistory:${taskId}`,
+  ]);
 }
 
 export async function getSnapshot(taskId) {

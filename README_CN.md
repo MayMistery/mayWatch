@@ -137,7 +137,7 @@ mayWatch/
 | `template` | 预置模板：纯整数、小数、带单位（`11812ms`）、货币（`¥89.9`） |
 | `regex` | 自定义正则捕获组，如 `(\d+)ms` |
 
-提取到的数值会在任务列表中显示为 **迷你折线图**，在详情页中显示为 **完整趋势图**。
+首次检查会记录一个数值基准点；后续第一次数值变化后，任务列表会显示 **迷你折线图**，详情页会显示 **完整趋势图**。
 
 ### 飞书通知
 
@@ -170,7 +170,7 @@ mayWatch/
 - **标签页优先提取** — `chrome.scripting.executeScript` 获取 SPA 实时 DOM，fetch 兜底
 - **Shadow DOM 隔离** — 面板样式与宿主页面完全互不干扰
 - **零构建工具链** — 纯 ES Modules，无打包器，无转译器
-- **Chart.js Blob URL** — 在 Shadow DOM 中通过 Blob URL 加载，规避 CSP 限制
+- **Chart.js 扩展资源加载** — 在 Shadow DOM 面板中按需加载扩展内置的 Chart.js，不依赖页面脚本
 
 ---
 

@@ -22,7 +22,7 @@ const NUMERIC_TEMPLATES = {
   currency: /[¥$€£₹]\s*([\d,]+\.?\d*)/,
 };
 
-function extractNumericValue(text, task = {}) {
+export function extractNumericValue(text, task = {}) {
   const mode = task.numericMode || 'off';
 
   if (mode === 'off') {
@@ -55,8 +55,8 @@ function extractNumericValue(text, task = {}) {
   return { isNumeric: true, numericValue: value };
 }
 
-export function createChangeRecord(task, oldContent, newContent, diffResult) {
-  const { isNumeric, numericValue } = extractNumericValue(newContent, task);
+export function createChangeRecord(task, oldContent, newContent, diffResult, numericResult) {
+  const { isNumeric, numericValue } = numericResult || extractNumericValue(newContent, task);
   return {
     id: generateId(),
     taskId: task.id,

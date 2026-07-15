@@ -428,20 +428,22 @@ export class Panel {
             animation: false,
           },
         });
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.warn(`[MayWatch] Sparkline render failed for task ${taskId}:`, err);
+      }
     }
   }
 
   async ensureChart() {
+    Chart = Chart || globalThis.Chart;
     if (Chart) return;
     try {
       const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
+      const mod = await import(url);
+      Chart = globalThis.Chart || mod.Chart || mod.default?.Chart || mod.default;
+      if (!Chart) {
+        throw new Error('Chart.js loaded without exposing Chart');
+      }
     } catch (err) {
       console.warn('[MayWatch] Chart.js load failed:', err);
     }
@@ -550,7 +552,8 @@ export class Panel {
           animation: { duration: 300 },
         },
       });
-    } catch {
+    } catch (err) {
+      console.warn(`[MayWatch] Trend chart render failed for task ${taskId}:`, err);
       container.classList.add('hidden');
     }
   }

@@ -136,7 +136,7 @@ When creating a task, enable **Numeric Tracking** and choose a mode:
 | `template` | Presets: integer, decimal, with-unit (`11812ms`), currency (`¥89.9`) |
 | `regex` | Your own capture group, e.g. `(\d+)ms` |
 
-Numeric values are plotted as **sparklines** in the task list and **trend charts** in the detail view.
+The first check records a numeric baseline. After the first numeric change, values are plotted as **sparklines** in the task list and **trend charts** in the detail view.
 
 ### Feishu Notification
 
@@ -167,7 +167,7 @@ Numeric values are plotted as **sparklines** in the task list and **trend charts
 - **Tab-first extraction** — `chrome.scripting.executeScript` for live SPA DOM, with fetch+parse fallback
 - **Shadow DOM isolation** — panel styles never leak to or from the host page
 - **Zero build tooling** — pure ES modules, no bundler, no transpiler
-- **Chart.js via Blob URL** — loaded into Shadow DOM context without CSP issues
+- **Chart.js extension resource** — loaded on demand for the Shadow DOM panel without relying on page scripts
 
 ---
 
