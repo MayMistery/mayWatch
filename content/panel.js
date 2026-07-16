@@ -436,12 +436,8 @@ export class Panel {
     if (Chart) return;
     try {
       const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
+      await import(url);
+      Chart = globalThis.Chart || window.Chart;
     } catch (err) {
       console.warn('[MayWatch] Chart.js load failed:', err);
     }
