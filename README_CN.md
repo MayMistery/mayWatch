@@ -170,7 +170,7 @@ mayWatch/
 - **标签页优先提取** — `chrome.scripting.executeScript` 获取 SPA 实时 DOM，fetch 兜底
 - **Shadow DOM 隔离** — 面板样式与宿主页面完全互不干扰
 - **零构建工具链** — 纯 ES Modules，无打包器，无转译器
-- **Chart.js Blob URL** — 在 Shadow DOM 中通过 Blob URL 加载，规避 CSP 限制
+- **Chart.js 本地资源** — 直接加载扩展包内的 UMD 构建，兼容 Manifest V3 Content Script CSP
 
 ---
 
