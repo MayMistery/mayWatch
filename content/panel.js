@@ -1,4 +1,5 @@
 let Chart;
+let chartLoadPromise;
 
 export class Panel {
   constructor(shadowRoot) {
@@ -433,18 +434,28 @@ export class Panel {
   }
 
   async ensureChart() {
-    if (Chart) return;
-    try {
-      const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
-    } catch (err) {
-      console.warn('[MayWatch] Chart.js load failed:', err);
+    if (Chart) return Chart;
+
+    if (!chartLoadPromise) {
+      chartLoadPromise = (async () => {
+        const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
+        const mod = await import(url);
+        const chartConstructor =
+          mod.Chart || mod.default?.Chart || mod.default || globalThis.Chart;
+
+        if (typeof chartConstructor !== 'function') {
+          throw new Error('Chart.js loaded without a Chart constructor');
+        }
+
+        Chart = chartConstructor;
+        return Chart;
+      })().catch(err => {
+        console.warn('[MayWatch] Chart.js load failed:', err);
+        return null;
+      });
     }
+
+    return chartLoadPromise;
   }
 
   async showDetail(change) {

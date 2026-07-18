@@ -167,7 +167,7 @@ Numeric values are plotted as **sparklines** in the task list and **trend charts
 - **Tab-first extraction** — `chrome.scripting.executeScript` for live SPA DOM, with fetch+parse fallback
 - **Shadow DOM isolation** — panel styles never leak to or from the host page
 - **Zero build tooling** — pure ES modules, no bundler, no transpiler
-- **Chart.js via Blob URL** — loaded into Shadow DOM context without CSP issues
+- **Packaged Chart.js resource** — directly loads the bundled UMD build in compliance with the Manifest V3 content-script CSP
 
 ---
 
