@@ -1,6 +1,9 @@
-import { getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings, addNumericPoint } from './storage.js';
+import {
+  getTasks, saveTask, getSnapshot, saveSnapshot, addChange, getSettings,
+  getNumericHistory, addNumericPoint,
+} from './storage.js';
 import { fetchPageContent } from './fetcher.js';
-import { computeDiff, createChangeRecord } from './differ.js';
+import { computeDiff, createChangeRecord, extractNumericValue } from './differ.js';
 import { sendFeishuNotification } from './notifier.js';
 
 const MAX_CONTENT_SIZE = 500 * 1024;
@@ -56,8 +59,11 @@ export async function checkSingleTask(task) {
 
   if (!snapshot) {
     await saveSnapshot({ taskId: task.id, content, timestamp: now, url: task.url });
-    return { taskId: task.id, status: 'first_snapshot' };
+    const numericValue = await ensureNumericBaseline(task, content, now);
+    return { taskId: task.id, status: 'first_snapshot', numericValue };
   }
+
+  await ensureNumericBaseline(task, snapshot.content, snapshot.timestamp);
 
   const diffResult = computeDiff(snapshot.content, content);
 
@@ -82,6 +88,25 @@ export async function checkSingleTask(task) {
   }
 
   return { taskId: task.id, status: 'changed', change: changeRecord };
+}
+
+async function ensureNumericBaseline(task, content, timestamp) {
+  if (!task.numericMode || task.numericMode === 'off') {
+    return null;
+  }
+
+  const history = await getNumericHistory(task.id);
+  if (history.length > 0) {
+    return history[0].value;
+  }
+
+  const { isNumeric, numericValue } = extractNumericValue(content, task);
+  if (!isNumeric) {
+    return null;
+  }
+
+  await addNumericPoint(task.id, numericValue, timestamp);
+  return numericValue;
 }
 
 export async function checkAllTasks() {
