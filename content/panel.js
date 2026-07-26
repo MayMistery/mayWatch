@@ -391,8 +391,8 @@ export class Panel {
     const canvases = this.root.querySelectorAll('.mw-task-group-sparkline');
     if (canvases.length === 0) return;
 
-    await this.ensureChart();
-    if (!Chart) return;
+    const chartReady = await this.ensureChart();
+    if (!chartReady) return;
 
     for (const canvas of canvases) {
       const taskId = canvas.dataset.taskId;
@@ -428,22 +428,29 @@ export class Panel {
             animation: false,
           },
         });
-      } catch { /* ignore */ }
+      } catch (err) {
+        console.error(`[MayWatch] Sparkline render failed for task ${taskId}:`, err);
+      }
     }
   }
 
   async ensureChart() {
-    if (Chart) return;
+    if (typeof Chart === 'function') return true;
+
     try {
       const url = chrome.runtime.getURL('lib/vendor/chart.umd.min.js');
-      const text = await fetch(url).then(r => r.text());
-      const blob = new Blob([text], { type: 'text/javascript' });
-      const blobUrl = URL.createObjectURL(blob);
-      const mod = await import(blobUrl);
-      Chart = mod.Chart || mod.default?.Chart || mod.default;
-      URL.revokeObjectURL(blobUrl);
+      const mod = await import(url);
+      Chart = mod.Chart || mod.default?.Chart || mod.default || globalThis.Chart;
+
+      if (typeof Chart !== 'function') {
+        throw new Error('Chart.js loaded, but the Chart constructor was not found');
+      }
+
+      return true;
     } catch (err) {
-      console.warn('[MayWatch] Chart.js load failed:', err);
+      Chart = null;
+      console.error('[MayWatch] Chart.js load failed:', err);
+      return false;
     }
   }
 
@@ -490,8 +497,8 @@ export class Panel {
         return;
       }
 
-      await this.ensureChart();
-      if (!Chart) {
+      const chartReady = await this.ensureChart();
+      if (!chartReady) {
         container.classList.add('hidden');
         return;
       }
@@ -550,7 +557,8 @@ export class Panel {
           animation: { duration: 300 },
         },
       });
-    } catch {
+    } catch (err) {
+      console.error(`[MayWatch] Trend chart render failed for task ${taskId}:`, err);
       container.classList.add('hidden');
     }
   }

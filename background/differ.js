@@ -22,7 +22,7 @@ const NUMERIC_TEMPLATES = {
   currency: /[¥$€£₹]\s*([\d,]+\.?\d*)/,
 };
 
-function extractNumericValue(text, task = {}) {
+export function extractNumericValue(text, task = {}) {
   const mode = task.numericMode || 'off';
 
   if (mode === 'off') {
